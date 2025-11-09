@@ -224,7 +224,7 @@ const createProjectSchema = z.object({
   donorAllocations: z.array(donorAllocationSchema).optional().default([]),
 });
 
-const updateProjectSchema = z.object({
+const projectUpdateSchema = z.object({
   name: z.string().min(3).optional(),
   description: z.string().min(10).optional(),
   status: z.enum(['planning', 'enCours', 'completed', 'paused']).optional(),
@@ -235,18 +235,6 @@ const updateProjectSchema = z.object({
   chefProjectId: z.string().optional(),
   donatorIds: z.array(z.string()).optional(),
   donorAllocations: z.array(donorAllocationSchema).optional(),
-});
-
-const updateProjectSchema = z.object({
-  name: z.string().min(3).optional(),
-  description: z.string().min(10).optional(),
-  status: z.enum(['planning', 'enCours', 'completed', 'paused']).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().nullable().optional(),
-  budget: z.number().nonnegative().optional(),
-  spent: z.number().nonnegative().optional(),
-  chefProjectId: z.string().optional(),
-  donatorIds: z.array(z.string()).optional(),
 });
 
 router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
@@ -305,7 +293,7 @@ router.put(
       return res.status(400).json({ message: 'Invalid project id' });
     }
 
-    const parsed = updateProjectSchema.safeParse(req.body);
+    const parsed = projectUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: 'Invalid project payload' });
     }
