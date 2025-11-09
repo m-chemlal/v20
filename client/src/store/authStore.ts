@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, AuthState } from '@/types/auth';
 import { authAPI } from '@/services/api';
+import { useAppStore } from './appStore';
 
 interface AuthStoreState extends AuthState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -26,19 +27,23 @@ export const useAuthStore = create<AuthStoreState>()(
 
         try {
           // Call backend API
-          const response = await authAPI.login(email, password);
-          
+          await authAPI.login(email, password);
+
           // Get user info
           const userData = await authAPI.getMe();
-          
+
           // Map backend user to frontend User type
           const user: User = {
             id: userData.id.toString(),
             email: userData.email,
-            name: `${userData.prenom} ${userData.nom}`,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            name: `${userData.firstName} ${userData.lastName}`.trim(),
             role: userData.role,
-            avatar: userData.photo_profil || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.email}`,
-            createdAt: new Date(userData.date_creation),
+            avatar:
+              userData.avatar ??
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userData.email)}`,
+            createdAt: new Date(userData.createdAt),
           };
 
           set({
@@ -53,7 +58,7 @@ export const useAuthStore = create<AuthStoreState>()(
           let errorMessage = 'Une erreur est survenue lors de la connexion.';
           
           if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || !error.response) {
-            errorMessage = 'Impossible de se connecter au serveur. Vérifiez que le backend est démarré sur http://localhost:8000';
+            errorMessage = 'Impossible de se connecter au serveur. Vérifiez que le backend est démarré sur http://localhost:4000';
           } else if (error.response?.data?.detail) {
             errorMessage = error.response.data.detail;
           } else if (error.response?.status === 401) {
@@ -83,10 +88,14 @@ export const useAuthStore = create<AuthStoreState>()(
           const user: User = {
             id: userData.id.toString(),
             email: userData.email,
-            name: `${userData.prenom} ${userData.nom}`,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            name: `${userData.firstName} ${userData.lastName}`.trim(),
             role: userData.role,
-            avatar: userData.photo_profil || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.email}`,
-            createdAt: new Date(userData.date_creation),
+            avatar:
+              userData.avatar ??
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userData.email)}`,
+            createdAt: new Date(userData.createdAt),
           };
           set({ user, isAuthenticated: true });
         } catch (error) {
@@ -97,50 +106,11 @@ export const useAuthStore = create<AuthStoreState>()(
         }
       },
 
-      signup: async (newUser: Omit<User, 'id' | 'createdAt' | 'avatar'>) => {
-        set({ isLoading: true, error: null });
-
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        try {
-          // Check if user already exists
-          const userExists = mockUsers.find((u) => u.email === newUser.email);
-          if (userExists) {
-            set({
-              isLoading: false,
-              error: 'Cet email est déjà utilisé.',
-            });
-            return false;
-          }
-
-          // In a real app, the user would be created in the database.
-          // Here, we just simulate success.
-          const mockNewUser: User = {
-            id: `new-${Date.now()}`,
-            email: newUser.email,
-            firstName: newUser.firstName,
-            lastName: newUser.lastName,
-            name: `${newUser.firstName} ${newUser.lastName}`,
-            role: 'donateur', // Default role for new signups
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newUser.firstName}`,
-            createdAt: new Date(),
-          };
-
-          set({
-            user: mockNewUser,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-          return true;
-        } catch (error) {
-          set({
-            isLoading: false,
-            error: "Une erreur s'est produite lors de l'inscription. Veuillez réessayer.",
-          });
-          return false;
-        }
+      signup: async () => {
+        set({
+          error: "La création de compte direct n'est pas disponible. Contactez un administrateur.",
+        });
+        return false;
       },
 
       logout: async () => {
@@ -149,6 +119,7 @@ export const useAuthStore = create<AuthStoreState>()(
         } catch (error) {
           // Even if logout fails, clear local storage
         }
+        useAppStore.getState().clearData();
         set({
           user: null,
           isAuthenticated: false,
