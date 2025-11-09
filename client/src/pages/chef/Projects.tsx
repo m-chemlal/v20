@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,25 @@ import { format } from 'date-fns';
 
 export default function ChefProjects() {
   const { user } = useAuthStore();
-  const { projects, indicators, fetchIndicatorsForProject } = useAppStore();
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const indicators = useAppStore((state) => state.indicators);
+  const fetchIndicatorsForProject = useAppStore(
+    (state) => state.fetchIndicatorsForProject,
+  );
   const [, navigate] = useLocation();
 
-  const myProjects = projects.filter((p) => p.chefProjectId === user?.id);
+  useEffect(() => {
+    if (user && !loadedProjects) {
+      fetchProjects();
+    }
+  }, [user, loadedProjects, fetchProjects]);
+
+  const myProjects = useMemo(
+    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+    [getProjectsByUser, user?.id, user?.role],
+  );
 
   useEffect(() => {
     myProjects.forEach((project) => {

@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
@@ -19,11 +20,27 @@ import {
 
 export default function DonateurDashboard() {
   const { user } = useAuthStore();
-  const { projects, indicators } = useAppStore();
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const indicators = useAppStore((state) => state.indicators);
 
-  const fundedProjects = projects.filter((p) => p.donatorIds.includes(user?.id || ''));
-  const fundedIndicators = indicators.filter((i) =>
-    fundedProjects.some((p) => p.id === i.projectId)
+  useEffect(() => {
+    if (user && !loadedProjects) {
+      fetchProjects();
+    }
+  }, [user, loadedProjects, fetchProjects]);
+
+  const fundedProjects = useMemo(
+    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+    [getProjectsByUser, user?.id, user?.role],
+  );
+  const fundedIndicators = useMemo(
+    () =>
+      indicators.filter((indicator) =>
+        fundedProjects.some((project) => project.id === indicator.projectId),
+      ),
+    [indicators, fundedProjects],
   );
 
   const totalBudget = fundedProjects.reduce((sum, p) => sum + p.budget, 0);

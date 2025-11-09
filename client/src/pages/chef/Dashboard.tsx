@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
@@ -19,11 +19,30 @@ import { format } from 'date-fns';
 
 export default function ChefDashboard() {
   const { user } = useAuthStore();
-  const { projects, indicators, fetchIndicatorsForProject } = useAppStore();
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const indicators = useAppStore((state) => state.indicators);
+  const fetchIndicatorsForProject = useAppStore(
+    (state) => state.fetchIndicatorsForProject,
+  );
 
-  const myProjects = projects.filter((p) => p.chefProjectId === user?.id);
-  const myIndicators = indicators.filter((i) =>
-    myProjects.some((p) => p.id === i.projectId)
+  useEffect(() => {
+    if (user && !loadedProjects) {
+      fetchProjects();
+    }
+  }, [user, loadedProjects, fetchProjects]);
+
+  const myProjects = useMemo(
+    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+    [getProjectsByUser, user?.id, user?.role],
+  );
+  const myIndicators = useMemo(
+    () =>
+      indicators.filter((indicator) =>
+        myProjects.some((project) => project.id === indicator.projectId),
+      ),
+    [indicators, myProjects],
   );
 
   useEffect(() => {
