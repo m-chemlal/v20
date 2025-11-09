@@ -1,5 +1,23 @@
-import nodemailer from 'nodemailer';
 import { config } from '../config';
+
+type NodemailerTransporter = {
+  sendMail: (options: {
+    from?: string;
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+  }) => Promise<unknown>;
+};
+
+type NodemailerModule = {
+  createTransport: (options: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth?: { user: string; pass: string };
+  }) => NodemailerTransporter;
+};
 
 interface NewUserEmailOptions {
   to: string;
@@ -8,14 +26,49 @@ interface NewUserEmailOptions {
   password: string;
 }
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: NodemailerTransporter | null = null;
+let cachedNodemailer: NodemailerModule | null = null;
+let nodemailerLoadAttempted = false;
 
-function getTransporter() {
+async function loadNodemailer(): Promise<NodemailerModule | null> {
+  if (cachedNodemailer || nodemailerLoadAttempted) {
+    return cachedNodemailer;
+  }
+
+  nodemailerLoadAttempted = true;
+
+  try {
+    const moduleName = 'nodemailer';
+    const mod = await import(moduleName);
+    const resolved = (mod?.default ?? mod) as Partial<NodemailerModule>;
+    if (resolved && typeof resolved.createTransport === 'function') {
+      cachedNodemailer = resolved as NodemailerModule;
+      return cachedNodemailer;
+    }
+    console.warn('[email] nodemailer module loaded without createTransport - welcome emails disabled');
+    return null;
+  } catch (error) {
+    const code = typeof error === 'object' && error && 'code' in error ? (error as any).code : undefined;
+    if (code === 'ERR_MODULE_NOT_FOUND') {
+      console.warn('[email] nodemailer dependency not installed - welcome emails disabled');
+    } else {
+      console.error('[email] Failed to load nodemailer', error);
+    }
+    return null;
+  }
+}
+
+async function getTransporter(): Promise<NodemailerTransporter | null> {
   if (transporter) {
     return transporter;
   }
 
   if (!config.smtpHost) {
+    return null;
+  }
+
+  const nodemailer = await loadNodemailer();
+  if (!nodemailer) {
     return null;
   }
 
@@ -64,10 +117,10 @@ export async function sendNewUserPasswordEmail({
     ? `${config.smtpFromName} <${config.smtpFromEmail}>`
     : config.smtpFromEmail;
 
-  const activeTransporter = getTransporter();
+  const activeTransporter = await getTransporter();
 
   if (!activeTransporter) {
-    console.info('[email] SMTP configuration missing - skipping send');
+    console.info('[email] Email transport unavailable - skipping send');
     console.info(`[email] Would send welcome email to ${to}`);
     return;
   }
