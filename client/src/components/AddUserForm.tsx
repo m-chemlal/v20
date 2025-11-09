@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -10,34 +10,74 @@ import { Loader2 } from "lucide-react";
 import { usersAPI } from '@/services/api';
 import { toast } from 'sonner';
 
-const formSchema = z.object({
+const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
+const DIGITS = '0123456789';
+const SPECIAL = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+const getRandomInt = (max: number) => {
+  if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    return array[0] % max;
+  }
+
+  return Math.floor(Math.random() * max);
+};
+
+const pickRandomChar = (source: string) => source[getRandomInt(source.length)];
+
+const generateStrongPassword = (length = 16) => {
+  const allChars = UPPERCASE + LOWERCASE + DIGITS + SPECIAL;
+  const requiredChars = [
+    pickRandomChar(UPPERCASE),
+    pickRandomChar(LOWERCASE),
+    pickRandomChar(DIGITS),
+    pickRandomChar(SPECIAL),
+  ];
+
+  const remainingLength = Math.max(length, 12) - requiredChars.length;
+  const passwordChars = [...requiredChars];
+
+  for (let i = 0; i < remainingLength; i++) {
+    passwordChars.push(pickRandomChar(allChars));
+  }
+
+  // Shuffle characters to avoid predictable order of required characters
+  for (let i = passwordChars.length - 1; i > 0; i--) {
+    const j = getRandomInt(i + 1);
+    [passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
+  }
+
+  return passwordChars.join('');
+};
+
+export const userFormSchema = z.object({
   firstName: z.string().min(2, { message: "Le prénom doit contenir au moins 2 caractères." }),
   lastName: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères." }),
   email: z.string().email({ message: "Adresse email invalide." }),
   role: z.enum(['admin', 'chef_projet', 'donateur'], { message: "Veuillez sélectionner un rôle." }),
-  // Password is auto-generated, but we keep it in the schema for validation if we were to use it
-  password: z.string().optional(),
 });
 
-type AddUserFormData = z.infer<typeof formSchema>;
+type AddUserFormData = z.infer<typeof userFormSchema>;
 
 export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => void }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<AddUserFormData>({
-    resolver: zodResolver(formSchema),
+  const { control, register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<AddUserFormData>({
+    resolver: zodResolver(userFormSchema),
     defaultValues: {
       role: 'donateur',
     }
   });
   const onSubmit = async (data: AddUserFormData) => {
     try {
-      const randomPassword =
-        (typeof window !== 'undefined' && window.crypto?.randomUUID?.()) ||
-        `${Date.now().toString(36)}${Math.random().toString(36).slice(-6)}aA1!`;
+      const randomPassword = generateStrongPassword();
 
       const response = await usersAPI.create({
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
+        prenom: data.firstName,
+        nom: data.lastName,
         role: data.role,
         password: randomPassword,
       });
@@ -47,18 +87,24 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         lastName: '',
         email: '',
         role: 'donateur',
-        password: undefined,
       });
+      const firstName = response.firstName ?? response.prenom ?? '';
+      const lastName = response.lastName ?? response.nom ?? '';
       const createdUser: User = {
         id: response.id.toString(),
         email: response.email,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        name: `${response.firstName} ${response.lastName}`.trim(),
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`.trim(),
         role: response.role,
-        createdAt: new Date(response.createdAt ?? Date.now()),
+        createdAt: response.createdAt
+          ? new Date(response.createdAt)
+          : response.date_creation
+          ? new Date(response.date_creation)
+          : new Date(),
         avatar:
           response.avatar ??
+          response.photo_profil ??
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
       };
       onUserAdded?.(createdUser);
@@ -94,21 +140,32 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
 
       <div className="space-y-2">
         <Label htmlFor="role">Rôle</Label>
-        <Select
-          value={watch('role') || 'donateur'}
-          onValueChange={(value) => setValue('role', value as UserRole, { shouldValidate: true })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Sélectionner un rôle" />
-          </SelectTrigger>
-          <SelectContent>
-            {['admin', 'chef_projet', 'donateur'].map((role) => (
-              <SelectItem key={role} value={role}>
-                {role.replace('_', ' ').toUpperCase()}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? 'donateur'}
+              onValueChange={(value) => field.onChange(value as UserRole)}
+              onOpenChange={(open) => {
+                if (!open) {
+                  field.onBlur();
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un rôle" />
+              </SelectTrigger>
+              <SelectContent>
+                {['admin', 'chef_projet', 'donateur'].map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role.replace('_', ' ').toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
         {errors.role && <p className="text-red-500 text-xs">{errors.role.message}</p>}
       </div>
 
