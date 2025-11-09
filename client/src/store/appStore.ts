@@ -1,7 +1,13 @@
 import { create } from 'zustand';
-import { Project, Indicator, IndicatorEntry } from '@/types/project';
+import { Project, Indicator, IndicatorEntry, ProjectDonorAllocation } from '@/types/project';
 import { projectsAPI, indicatorsAPI, usersAPI } from '@/services/api';
 import { toast } from 'sonner';
+
+type ProjectDonorAllocationInput = {
+  donorId: string;
+  committedAmount: number;
+  spentAmount?: number;
+};
 
 interface AppStoreState {
   projects: Project[];
@@ -11,7 +17,7 @@ interface AppStoreState {
   error: string | null;
   inactivityTimeout: NodeJS.Timeout | null;
   loadedProjects: boolean;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (options?: { force?: boolean }) => Promise<void>;
   refreshProject: (projectId: string) => Promise<void>;
   getProjects: () => Project[];
   getProjectById: (id: string) => Project | undefined;
@@ -19,9 +25,28 @@ interface AppStoreState {
   createProject: (
     project: Omit<
       Project,
-      'id' | 'createdAt' | 'updatedAt' | 'donatorIds' | 'startDate' | 'endDate'
-    > & { startDate: Date; endDate: Date | null; donatorIds?: string[] }
+      'id' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate'
+    > & {
+      startDate: Date;
+      endDate: Date | null;
+      donorAllocations?: ProjectDonorAllocationInput[];
+    }
   ) => Promise<Project | null>;
+  updateProject: (
+    projectId: string,
+    project: {
+      name: string;
+      description: string;
+      status: Project['status'];
+      startDate: Date | string;
+      endDate: Date | string | null;
+      budget: number;
+      spent: number;
+      chefProjectId: string;
+      donorAllocations?: ProjectDonorAllocationInput[];
+    }
+  ) => Promise<Project | null>;
+  deleteProject: (projectId: string) => Promise<boolean>;
   getIndicators: () => Indicator[];
   getIndicatorsByProject: (projectId: string) => Indicator[];
   fetchIndicatorsForProject: (projectId: string) => Promise<Indicator[]>;
@@ -39,25 +64,114 @@ interface AppStoreState {
   clearData: () => void;
 }
 
+function parseDate(value: any): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
+
+function requireDate(value: any, fallback?: Date): Date {
+  return parseDate(value) ?? fallback ?? new Date();
+}
+
+function coerceNumber(value: any, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function toDateOnly(value: Date | string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().split('T')[0];
+  }
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
+  }
+  return null;
+}
+
 function mapProjectResponse(data: any): Project {
   const adminRaw = data.adminId ?? data.admin_id;
   const chefRaw = data.chefProjectId ?? data.chef_project_id;
   const donorRaw =
-    Array.isArray(data.donatorIds) ? data.donatorIds : Array.isArray(data.donor_ids) ? data.donor_ids : [];
+    Array.isArray(data.donatorIds)
+      ? data.donatorIds
+      : Array.isArray(data.donor_ids)
+        ? data.donor_ids
+        : [];
+  const donorAllocationsRaw = Array.isArray(data.donorAllocations)
+    ? data.donorAllocations
+    : Array.isArray(data.donor_allocations)
+      ? data.donor_allocations
+      : Array.isArray(data.donors)
+        ? data.donors
+        : [];
+  const donorAllocations: ProjectDonorAllocation[] = donorAllocationsRaw
+    .map((entry: any) => {
+      const donorId =
+        entry?.donorId ??
+        entry?.donor_id ??
+        entry?.userId ??
+        entry?.user_id ??
+        entry?.id ??
+        null;
+
+      if (donorId == null) {
+        return null;
+      }
+
+      return {
+        donorId: donorId.toString(),
+        committedAmount: coerceNumber(
+          entry?.committedAmount ?? entry?.committed_amount ?? entry?.amount ?? 0,
+        ),
+        spentAmount: coerceNumber(entry?.spentAmount ?? entry?.spent_amount ?? entry?.spent ?? 0),
+      } satisfies ProjectDonorAllocation;
+    })
+    .filter(Boolean) as ProjectDonorAllocation[];
+  const donorIdsFromAllocations = donorAllocations.map((allocation) => allocation.donorId);
+  const donorIdsFallback = donorRaw.map((id: any) => id.toString());
+  const donorIds = donorIdsFromAllocations.length > 0 ? donorIdsFromAllocations : donorIdsFallback;
+  const startSource = data.startDate ?? data.start_date ?? data.createdAt ?? data.created_at;
+  const endSource = data.endDate ?? data.end_date ?? null;
   return {
     id: data.id.toString(),
     name: data.name,
     description: data.description,
     status: data.status,
-    startDate: new Date(data.startDate ?? data.start_date ?? data.createdAt),
-    endDate: data.endDate ? new Date(data.endDate) : data.end_date ? new Date(data.end_date) : null,
-    budget: Number(data.budget),
-    spent: Number(data.spent ?? 0),
+    startDate: requireDate(startSource),
+    endDate: parseDate(endSource),
+    budget: coerceNumber(data.budget),
+    spent: coerceNumber(data.spent ?? data.spent_amount ?? 0),
     adminId: adminRaw != null ? adminRaw.toString() : null,
     chefProjectId: chefRaw != null ? chefRaw.toString() : '',
-    donatorIds: donorRaw.map((id: any) => id.toString()),
-    createdAt: new Date(data.createdAt ?? data.created_at ?? Date.now()),
-    updatedAt: new Date(data.updatedAt ?? data.updated_at ?? Date.now()),
+    donatorIds: donorIds,
+    donorAllocations,
+    createdAt: requireDate(data.createdAt ?? data.created_at ?? Date.now()),
+    updatedAt: requireDate(data.updatedAt ?? data.updated_at ?? Date.now()),
   };
 }
 
@@ -97,8 +211,20 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   inactivityTimeout: null,
   loadedProjects: false,
 
-  async fetchProjects() {
+  async fetchProjects(options = {}) {
+    const { force = false } = options;
+    const { loadedProjects, isLoading } = get();
+
+    if (isLoading) {
+      return;
+    }
+
+    if (loadedProjects && !force) {
+      return;
+    }
+
     set({ isLoading: true, error: null });
+
     try {
       const data = await projectsAPI.getAll();
       const projects = data.map(mapProjectResponse);
@@ -107,6 +233,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       console.error('Failed to load projects', error);
       set({
         isLoading: false,
+        loadedProjects: true,
         error:
           error?.response?.data?.message ??
           "Impossible de charger les projets. Vérifiez la connexion avec l'API.",
@@ -141,13 +268,36 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       return projects.filter((project) => project.chefProjectId === userId);
     }
     if (role === 'donateur') {
-      return projects.filter((project) => project.donatorIds.includes(userId));
+      return projects.filter((project) => {
+        const donorIds = project.donorAllocations?.map((allocation) => allocation.donorId);
+        if (donorIds && donorIds.length > 0) {
+          return donorIds.includes(userId);
+        }
+        return project.donatorIds.includes(userId);
+      });
     }
     return [];
   },
 
   async createProject(project) {
     try {
+      const donors =
+        project.donorAllocations && project.donorAllocations.length > 0
+          ? project.donorAllocations
+          : (project.donatorIds ?? []).map((id) => ({
+              donorId: id,
+              committedAmount: 0,
+              spentAmount: 0,
+            }));
+      const donorPayload = donors.map((donor) => ({
+        userId: donor.donorId,
+        committedAmount: donor.committedAmount,
+        spentAmount: donor.spentAmount ?? 0,
+      }));
+      const donorsSpentTotal = donors.reduce(
+        (sum, donor) => sum + (donor.spentAmount ?? 0),
+        0,
+      );
       const payload = {
         name: project.name,
         description: project.description,
@@ -155,9 +305,9 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         startDate: project.startDate.toISOString().split('T')[0],
         endDate: project.endDate ? project.endDate.toISOString().split('T')[0] : null,
         budget: project.budget,
-        spent: project.spent,
+        spent: Math.max(project.spent ?? 0, donorsSpentTotal),
         chefProjectId: project.chefProjectId,
-        donatorIds: project.donatorIds ?? [],
+        donorAllocations: donorPayload,
       };
       const response = await projectsAPI.create(payload);
       const created = mapProjectResponse(response);
@@ -171,6 +321,70 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
           "Impossible de créer le projet. Vérifiez les informations saisies.",
       );
       return null;
+    }
+  },
+
+  async updateProject(projectId, project) {
+    try {
+      const donors =
+        project.donorAllocations && project.donorAllocations.length > 0
+          ? project.donorAllocations
+          : [];
+      const donorPayload = donors.map((donor) => ({
+        userId: donor.donorId,
+        committedAmount: donor.committedAmount,
+        spentAmount: donor.spentAmount ?? 0,
+      }));
+      const donorsSpentTotal = donors.reduce(
+        (sum, donor) => sum + (donor.spentAmount ?? 0),
+        0,
+      );
+      const payload = {
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        startDate: toDateOnly(project.startDate) ?? new Date().toISOString().split('T')[0],
+        endDate: toDateOnly(project.endDate),
+        budget: project.budget,
+        spent: Math.max(project.spent ?? 0, donorsSpentTotal),
+        chefProjectId: project.chefProjectId,
+        donorAllocations: donorPayload,
+      };
+
+      const response = await projectsAPI.update(projectId, payload);
+      const updated = mapProjectResponse(response);
+      set((state) => ({
+        projects: state.projects.map((existing) =>
+          existing.id === updated.id ? updated : existing,
+        ),
+      }));
+      toast.success(`Projet "${updated.name}" mis à jour.`);
+      return updated;
+    } catch (error: any) {
+      console.error('Failed to update project', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de mettre à jour le projet. Vérifiez les informations fournies.",
+      );
+      return null;
+    }
+  },
+
+  async deleteProject(projectId) {
+    try {
+      await projectsAPI.delete(projectId);
+      set((state) => ({
+        projects: state.projects.filter((project) => project.id !== projectId),
+      }));
+      toast.success('Projet supprimé avec succès.');
+      return true;
+    } catch (error: any) {
+      console.error('Failed to delete project', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de supprimer le projet. Réessayez plus tard.",
+      );
+      return false;
     }
   },
 
@@ -295,5 +509,19 @@ export async function fetchChefsDeProjet() {
   } catch (error) {
     console.error('Failed to fetch chefs de projet', error);
     return [];
+  }
+}
+
+export async function fetchDonateurs() {
+  try {
+    const users = await usersAPI.getAll('donateur');
+    return users.map((user: any) => ({
+      id: user.id.toString(),
+      name: `${user.firstName} ${user.lastName}`.trim() || user.email || `Donateur #${user.id}`,
+      email: user.email as string | undefined,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch donors', error);
+    return [] as Array<{ id: string; name: string; email?: string }>;
   }
 }

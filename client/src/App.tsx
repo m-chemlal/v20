@@ -55,6 +55,11 @@ function Router() {
           <ChefDashboard />
         </ProtectedRoute>
       </Route>
+      <Route path="/chef/projects/:id">
+        <ProtectedRoute requiredRole="chef_projet">
+          <ChefProjectDetails />
+        </ProtectedRoute>
+      </Route>
       <Route path="/chef/projects">
         <ProtectedRoute requiredRole="chef_projet">
           <ChefProjects />

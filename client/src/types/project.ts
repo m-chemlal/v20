@@ -12,8 +12,15 @@ export interface Project {
   adminId: string | null;
   chefProjectId: string;
   donatorIds: string[];
+  donorAllocations: ProjectDonorAllocation[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ProjectDonorAllocation {
+  donorId: string;
+  committedAmount: number;
+  spentAmount: number;
 }
 
 export interface Indicator {
