@@ -71,7 +71,14 @@ Les identifiants de démonstration (créés au démarrage du backend) sont :
 
 ## 🗃️ Utilisation d'une base SQLite locale
 
-Si vous préférez travailler avec SQLite plutôt qu'avec PostgreSQL :
+> ⚠️ **Important :** le backend Express actuellement versionné parle exclusivement au driver PostgreSQL (`pg`).
+> Les requêtes SQL (agrégations, `RETURNING`, `array_agg`, etc.) et la couche d'accès aux données
+> ne sont pas compatibles SQLite pour le moment. Les instructions ci-dessous décrivent la configuration
+> côté variables d'environnement uniquement, mais une migration réelle vers SQLite nécessiterait
+> d'adapter le code du backend (requêtes, migrations et initialisation).
+
+Si vous préférez travailler avec SQLite plutôt qu'avec PostgreSQL, voici la configuration environnementale à appliquer
+avant d'entamer les modifications côté code :
 
 1. Copiez (ou créez) votre fichier `.env` puis remplacez la valeur de `DATABASE_URL` par :
    ```env
@@ -91,7 +98,7 @@ Si vous préférez travailler avec SQLite plutôt qu'avec PostgreSQL :
    ```bash
    pnpm add sqlite3
    ```
-4. Relancez l'API avec `pnpm dev:server`. Les tables seront créées au démarrage si elles n'existent pas.
+4. Relancez l'API avec `pnpm dev:server`. Les tables seront créées au démarrage si elles n'existent pas **uniquement si le code backend a été ajusté pour SQLite**.
 
 ## 🗃️ Utilisation d'une base PostgreSQL réelle
 
