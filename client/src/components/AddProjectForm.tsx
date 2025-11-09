@@ -17,7 +17,7 @@ import { Loader2 } from 'lucide-react';
 import { useAppStore, fetchChefsDeProjet } from '@/store/appStore';
 import { Project, ProjectStatus } from '@/types/project';
 
-const PROJECT_STATUSES = ['planning', 'enCours', 'completed', 'paused'] as const;
+export const PROJECT_STATUSES = ['planning', 'enCours', 'completed', 'paused'] as const;
 
 const formSchema = z.object({
   name: z.string().min(5, {
