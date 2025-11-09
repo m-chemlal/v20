@@ -76,6 +76,8 @@ const MIGRATIONS: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS project_donors (
       project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      committed_amount REAL NOT NULL DEFAULT 0,
+      spent_amount REAL NOT NULL DEFAULT 0,
       PRIMARY KEY (project_id, user_id)
     );`,
   `CREATE TABLE IF NOT EXISTS indicators (
@@ -100,9 +102,46 @@ const MIGRATIONS: readonly string[] = [
     );`,
   `CREATE INDEX IF NOT EXISTS idx_projects_chef_project_id ON projects(chef_project_id);`,
   `CREATE INDEX IF NOT EXISTS idx_project_donors_user_id ON project_donors(user_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_project_donors_project_id ON project_donors(project_id);`,
+  `ALTER TABLE project_donors ADD COLUMN committed_amount REAL NOT NULL DEFAULT 0;`,
+  `ALTER TABLE project_donors ADD COLUMN spent_amount REAL NOT NULL DEFAULT 0;`,
   `CREATE INDEX IF NOT EXISTS idx_indicators_project_id ON indicators(project_id);`,
   `CREATE INDEX IF NOT EXISTS idx_indicator_entries_indicator_id ON indicator_entries(indicator_id);`
 ];
+
+function shouldIgnoreMigrationError(statement: string, error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  const normalizedStatement = statement.trim().toLowerCase();
+
+  if (normalizedStatement.startsWith('create table') && normalizedMessage.includes('already exists')) {
+    return true;
+  }
+
+  if (normalizedStatement.startsWith('create index') && normalizedMessage.includes('already exists')) {
+    return true;
+  }
+
+  if (normalizedStatement.includes('alter table') && normalizedMessage.includes('duplicate column name')) {
+    return true;
+  }
+
+  return false;
+}
+
+function runMigration(db: SqlJsDatabase, statement: string) {
+  try {
+    db.exec(statement);
+  } catch (error) {
+    if (shouldIgnoreMigrationError(statement, error)) {
+      return;
+    }
+    throw error;
+  }
+}
 
 async function getSqlModule(): Promise<SqlJsStatic> {
   if (!SQL) {
@@ -171,7 +210,7 @@ async function openDatabase(): Promise<SqlJsDatabase> {
 async function initializeDatabase() {
   const db = await openDatabase();
   for (const statement of MIGRATIONS) {
-    db.exec(statement);
+    runMigration(db, statement);
   }
   await seedDatabase(db);
   persistDatabase(db, databasePath ?? ':memory:');
@@ -291,7 +330,7 @@ async function seedDatabase(db: SqlJsDatabase) {
     budget: number;
     spent: number;
     chefProjectId: number;
-    donors: number[];
+    donors: Array<{ userId: number; committedAmount: number; spentAmount: number }>;
   }) => {
     const result = executeRun(
       db,
@@ -314,7 +353,12 @@ async function seedDatabase(db: SqlJsDatabase) {
         ? result.lastInsertRowid
         : executeSelect<{ id: number }>(db, `SELECT last_insert_rowid() as id`, [])[0]?.id ?? 0;
     for (const donor of project.donors) {
-      executeRun(db, `INSERT OR IGNORE INTO project_donors (project_id, user_id) VALUES (?, ?)`, [projectId, donor]);
+      executeRun(
+        db,
+        `INSERT OR IGNORE INTO project_donors (project_id, user_id, committed_amount, spent_amount)
+         VALUES (?, ?, ?, ?)`,
+        [projectId, donor.userId, donor.committedAmount, donor.spentAmount],
+      );
     }
     return Number(projectId);
   };
@@ -328,7 +372,10 @@ async function seedDatabase(db: SqlJsDatabase) {
     budget: 50000,
     spent: 32000,
     chefProjectId: chefId,
-    donors: [donorId, donor2Id],
+    donors: [
+      { userId: donorId, committedAmount: 30000, spentAmount: 18500 },
+      { userId: donor2Id, committedAmount: 20000, spentAmount: 13500 },
+    ],
   });
 
   const project2Id = insertProject({
@@ -340,7 +387,7 @@ async function seedDatabase(db: SqlJsDatabase) {
     budget: 75000,
     spent: 45000,
     chefProjectId: chef2Id,
-    donors: [donorId],
+    donors: [{ userId: donorId, committedAmount: 50000, spentAmount: 30000 }],
   });
 
   const project3Id = insertProject({
@@ -352,7 +399,7 @@ async function seedDatabase(db: SqlJsDatabase) {
     budget: 100000,
     spent: 5000,
     chefProjectId: chefId,
-    donors: [donor2Id],
+    donors: [{ userId: donor2Id, committedAmount: 60000, spentAmount: 5000 }],
   });
 
   const insertIndicator = (indicator: {

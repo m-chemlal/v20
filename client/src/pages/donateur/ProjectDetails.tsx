@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
+import { useAuthStore } from '@/store/authStore';
 import { DollarSign, Calendar, TrendingUp, ArrowLeft, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRoute, useLocation } from 'wouter';
@@ -62,6 +63,7 @@ export default function DonateurProjectDetails() {
   const project = useAppStore((state) =>
     projectId ? state.getProjectById(projectId) : undefined,
   );
+  const { user } = useAuthStore();
   const allIndicators = useAppStore((state) => state.indicators);
   const projectIndicators = useMemo(
     () =>
@@ -119,6 +121,10 @@ export default function DonateurProjectDetails() {
       </DashboardLayout>
     );
   }
+
+  const allocation = project.donorAllocations?.find((donor) => donor.donorId === (user?.id ?? ''));
+  const committedBudget = allocation ? allocation.committedAmount : project.budget;
+  const committedSpent = allocation ? allocation.spentAmount : project.spent;
 
   const entriesByIndicator = useMemo(() => {
     const grouped = new Map<string, IndicatorEntry[]>();
@@ -211,15 +217,19 @@ export default function DonateurProjectDetails() {
             <div className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-purple-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Budget</p>
-                <p className="font-semibold">{project.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                <p className="text-sm text-muted-foreground">Budget engagé</p>
+                <p className="font-semibold">
+                  {committedBudget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-purple-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Dépensé</p>
-                <p className="font-semibold">{project.spent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                <p className="font-semibold">
+                  {committedSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">

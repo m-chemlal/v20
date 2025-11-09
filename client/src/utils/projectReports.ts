@@ -61,6 +61,30 @@ export function generateProjectReportPdf({
   );
   cursorY += 10;
 
+  if (Array.isArray(project.donorAllocations) && project.donorAllocations.length > 0) {
+    doc.text('Financement des donateurs :', margin, cursorY);
+    cursorY += 6;
+
+    project.donorAllocations.forEach((donor) => {
+      if (cursorY > 270) {
+        doc.addPage();
+        cursorY = 20;
+      }
+
+      doc.text(
+        `• Donateur #${donor.donorId} – ${donor.committedAmount.toLocaleString('fr-FR', {
+          style: 'currency',
+          currency: 'EUR',
+        })} engagés / ${donor.spentAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} dépensés`,
+        margin,
+        cursorY,
+      );
+      cursorY += 6;
+    });
+
+    cursorY += 4;
+  }
+
   if (project.description) {
     const descriptionLines = doc.splitTextToSize(project.description, 180);
     doc.text('Description :', margin, cursorY);

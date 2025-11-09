@@ -47,20 +47,24 @@ export default function DonateurDashboard() {
             )
           : Math.round(project.budget ? (project.spent / project.budget) * 100 : 0);
 
+        const allocation = project.donorAllocations?.find((donor) => donor.donorId === (user?.id ?? ''));
+        const committedBudget = allocation ? allocation.committedAmount : project.budget;
+        const committedSpent = allocation ? allocation.spentAmount : project.spent;
+
         return {
           id: project.id,
           name: project.name,
           description: project.description,
           status: project.status,
-          budget: project.budget,
-          spent: project.spent,
+          budget: committedBudget,
+          spent: committedSpent,
           startDate: project.startDate,
           endDate: project.endDate,
           indicators: projectIndicators.length,
           averageProgress: Math.min(averageProgress, 100),
         };
       }),
-    [fundedProjects, indicators],
+    [fundedProjects, indicators, user?.id],
   );
 
   const totalBudget = projectSummaries.reduce((sum, project) => sum + project.budget, 0);

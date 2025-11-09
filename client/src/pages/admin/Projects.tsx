@@ -159,6 +159,25 @@ export default function AdminProjects() {
       ),
     },
     {
+      accessorKey: 'donorAllocations',
+      header: 'Financement',
+      cell: ({ row }) => {
+        const donorAllocations = row.original.donorAllocations ?? [];
+        if (donorAllocations.length === 0) {
+          return <span className="text-xs text-muted-foreground">Aucun donateur</span>;
+        }
+        const totalCommitted = donorAllocations.reduce((sum, donor) => sum + donor.committedAmount, 0);
+        return (
+          <div className="flex flex-col text-sm">
+            <span className="font-medium">{donorAllocations.length} donateur{donorAllocations.length > 1 ? 's' : ''}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatCurrency(totalCommitted)} engagés
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: 'startDate',
       header: 'Date de Début',
       cell: ({ row }) => (

@@ -123,7 +123,10 @@ export default function DonateurProjects() {
                   ) / projectIndicators.length,
                 )
               : 0;
-            const spentRatio = project.budget ? project.spent / project.budget : 0;
+            const allocation = project.donorAllocations?.find((donor) => donor.donorId === (user?.id ?? ''));
+            const committedBudget = allocation ? allocation.committedAmount : project.budget;
+            const committedSpent = allocation ? allocation.spentAmount : project.spent;
+            const spentRatio = committedBudget ? committedSpent / committedBudget : 0;
 
             return (
               <motion.div
@@ -157,7 +160,7 @@ export default function DonateurProjects() {
                         Investissement
                       </span>
                       <span className="text-sm font-semibold">
-                        {project.budget.toLocaleString('fr-FR', {
+                        {committedBudget.toLocaleString('fr-FR', {
                           style: 'currency',
                           currency: 'EUR',
                         })}
@@ -170,7 +173,7 @@ export default function DonateurProjects() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      {project.spent.toLocaleString('fr-FR', {
+                      {committedSpent.toLocaleString('fr-FR', {
                         style: 'currency',
                         currency: 'EUR',
                       })}{' '}

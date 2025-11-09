@@ -1,7 +1,13 @@
 import { create } from 'zustand';
-import { Project, Indicator, IndicatorEntry } from '@/types/project';
+import { Project, Indicator, IndicatorEntry, ProjectDonorAllocation } from '@/types/project';
 import { projectsAPI, indicatorsAPI, usersAPI } from '@/services/api';
 import { toast } from 'sonner';
+
+type ProjectDonorAllocationInput = {
+  donorId: string;
+  committedAmount: number;
+  spentAmount?: number;
+};
 
 interface AppStoreState {
   projects: Project[];
@@ -19,8 +25,12 @@ interface AppStoreState {
   createProject: (
     project: Omit<
       Project,
-      'id' | 'createdAt' | 'updatedAt' | 'donatorIds' | 'startDate' | 'endDate'
-    > & { startDate: Date; endDate: Date | null; donatorIds?: string[] }
+      'id' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate'
+    > & {
+      startDate: Date;
+      endDate: Date | null;
+      donorAllocations?: ProjectDonorAllocationInput[];
+    }
   ) => Promise<Project | null>;
   updateProject: (
     projectId: string,
@@ -33,7 +43,7 @@ interface AppStoreState {
       budget: number;
       spent: number;
       chefProjectId: string;
-      donatorIds?: string[];
+      donorAllocations?: ProjectDonorAllocationInput[];
     }
   ) => Promise<Project | null>;
   deleteProject: (projectId: string) => Promise<boolean>;
@@ -112,6 +122,39 @@ function mapProjectResponse(data: any): Project {
       : Array.isArray(data.donor_ids)
         ? data.donor_ids
         : [];
+  const donorAllocationsRaw = Array.isArray(data.donorAllocations)
+    ? data.donorAllocations
+    : Array.isArray(data.donor_allocations)
+      ? data.donor_allocations
+      : Array.isArray(data.donors)
+        ? data.donors
+        : [];
+  const donorAllocations: ProjectDonorAllocation[] = donorAllocationsRaw
+    .map((entry: any) => {
+      const donorId =
+        entry?.donorId ??
+        entry?.donor_id ??
+        entry?.userId ??
+        entry?.user_id ??
+        entry?.id ??
+        null;
+
+      if (donorId == null) {
+        return null;
+      }
+
+      return {
+        donorId: donorId.toString(),
+        committedAmount: coerceNumber(
+          entry?.committedAmount ?? entry?.committed_amount ?? entry?.amount ?? 0,
+        ),
+        spentAmount: coerceNumber(entry?.spentAmount ?? entry?.spent_amount ?? entry?.spent ?? 0),
+      } satisfies ProjectDonorAllocation;
+    })
+    .filter(Boolean) as ProjectDonorAllocation[];
+  const donorIdsFromAllocations = donorAllocations.map((allocation) => allocation.donorId);
+  const donorIdsFallback = donorRaw.map((id: any) => id.toString());
+  const donorIds = donorIdsFromAllocations.length > 0 ? donorIdsFromAllocations : donorIdsFallback;
   const startSource = data.startDate ?? data.start_date ?? data.createdAt ?? data.created_at;
   const endSource = data.endDate ?? data.end_date ?? null;
   return {
@@ -125,7 +168,8 @@ function mapProjectResponse(data: any): Project {
     spent: coerceNumber(data.spent ?? data.spent_amount ?? 0),
     adminId: adminRaw != null ? adminRaw.toString() : null,
     chefProjectId: chefRaw != null ? chefRaw.toString() : '',
-    donatorIds: donorRaw.map((id: any) => id.toString()),
+    donatorIds: donorIds,
+    donorAllocations,
     createdAt: requireDate(data.createdAt ?? data.created_at ?? Date.now()),
     updatedAt: requireDate(data.updatedAt ?? data.updated_at ?? Date.now()),
   };
@@ -224,13 +268,36 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       return projects.filter((project) => project.chefProjectId === userId);
     }
     if (role === 'donateur') {
-      return projects.filter((project) => project.donatorIds.includes(userId));
+      return projects.filter((project) => {
+        const donorIds = project.donorAllocations?.map((allocation) => allocation.donorId);
+        if (donorIds && donorIds.length > 0) {
+          return donorIds.includes(userId);
+        }
+        return project.donatorIds.includes(userId);
+      });
     }
     return [];
   },
 
   async createProject(project) {
     try {
+      const donors =
+        project.donorAllocations && project.donorAllocations.length > 0
+          ? project.donorAllocations
+          : (project.donatorIds ?? []).map((id) => ({
+              donorId: id,
+              committedAmount: 0,
+              spentAmount: 0,
+            }));
+      const donorPayload = donors.map((donor) => ({
+        userId: donor.donorId,
+        committedAmount: donor.committedAmount,
+        spentAmount: donor.spentAmount ?? 0,
+      }));
+      const donorsSpentTotal = donors.reduce(
+        (sum, donor) => sum + (donor.spentAmount ?? 0),
+        0,
+      );
       const payload = {
         name: project.name,
         description: project.description,
@@ -238,9 +305,9 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         startDate: project.startDate.toISOString().split('T')[0],
         endDate: project.endDate ? project.endDate.toISOString().split('T')[0] : null,
         budget: project.budget,
-        spent: project.spent,
+        spent: Math.max(project.spent ?? 0, donorsSpentTotal),
         chefProjectId: project.chefProjectId,
-        donatorIds: project.donatorIds ?? [],
+        donorAllocations: donorPayload,
       };
       const response = await projectsAPI.create(payload);
       const created = mapProjectResponse(response);
@@ -259,6 +326,19 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   async updateProject(projectId, project) {
     try {
+      const donors =
+        project.donorAllocations && project.donorAllocations.length > 0
+          ? project.donorAllocations
+          : [];
+      const donorPayload = donors.map((donor) => ({
+        userId: donor.donorId,
+        committedAmount: donor.committedAmount,
+        spentAmount: donor.spentAmount ?? 0,
+      }));
+      const donorsSpentTotal = donors.reduce(
+        (sum, donor) => sum + (donor.spentAmount ?? 0),
+        0,
+      );
       const payload = {
         name: project.name,
         description: project.description,
@@ -266,9 +346,9 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         startDate: toDateOnly(project.startDate) ?? new Date().toISOString().split('T')[0],
         endDate: toDateOnly(project.endDate),
         budget: project.budget,
-        spent: project.spent,
+        spent: Math.max(project.spent ?? 0, donorsSpentTotal),
         chefProjectId: project.chefProjectId,
-        donatorIds: project.donatorIds ?? [],
+        donorAllocations: donorPayload,
       };
 
       const response = await projectsAPI.update(projectId, payload);

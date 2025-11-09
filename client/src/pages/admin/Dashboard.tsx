@@ -7,10 +7,10 @@ import { usersAPI } from '@/services/api';
 import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import {
-  Users,
-  Briefcase,
-  TrendingUp,
-  AlertCircle,
+  UserCheck,
+  Smile,
+  Scale,
+  ShieldAlert,
   Plus,
 } from 'lucide-react';
 import {
@@ -41,10 +41,8 @@ export default function AdminDashboard() {
   const loadedProjects = useAppStore((state) => state.loadedProjects);
   const fetchIndicatorsForProject = useAppStore((state) => state.fetchIndicatorsForProject);
 
-  const [userMetrics, setUserMetrics] = useState<UserMetrics>({
-    total: 0,
-    newInLast30Days: 0,
-  });
+  const [users, setUsers] = useState<any[]>([]);
+  const [recentUserCount, setRecentUserCount] = useState(0);
 
   useEffect(() => {
     if (!loadedProjects) {
@@ -96,26 +94,24 @@ export default function AdminDashboard() {
         if (!isMounted) {
           return;
         }
-
-        const total = Array.isArray(response) ? response.length : 0;
+        const normalizedUsers = Array.isArray(response) ? response : [];
+        setUsers(normalizedUsers);
         const now = new Date();
         const thirtyDaysAgo = new Date(now);
         thirtyDaysAgo.setDate(now.getDate() - 30);
 
-        const newInLast30Days = Array.isArray(response)
-          ? response.reduce((count: number, user: any) => {
-              const createdAt =
-                parseDate(user.createdAt ?? user.created_at ?? user.date_creation ?? user.dateCreated) ?? null;
+        const newInLast30Days = normalizedUsers.reduce((count: number, user: any) => {
+          const createdAt =
+            parseDate(user.createdAt ?? user.created_at ?? user.date_creation ?? user.dateCreated) ?? null;
 
-              if (createdAt && createdAt >= thirtyDaysAgo) {
-                return count + 1;
-              }
+          if (createdAt && createdAt >= thirtyDaysAgo) {
+            return count + 1;
+          }
 
-              return count;
-            }, 0)
-          : 0;
+          return count;
+        }, 0);
 
-        setUserMetrics({ total, newInLast30Days });
+        setRecentUserCount(newInLast30Days);
       } catch (error) {
         console.error('Failed to load user metrics', error);
       }
@@ -129,79 +125,109 @@ export default function AdminDashboard() {
   }, []);
 
   const stats = useMemo(() => {
-    const totalProjects = projects.length;
-    const activeProjects = projects.filter((project) => project.status === 'enCours').length;
-    const completedProjects = projects.filter((project) => project.status === 'completed').length;
-    const pausedProjects = projects.filter((project) => project.status === 'paused').length;
-    const overBudgetProjects = projects.filter((project) => project.spent > project.budget).length;
+    const chefs = users.filter((user) => user.role === 'chef_projet');
+    const engagedChefIds = new Set(projects.map((project) => project.chefProjectId).filter(Boolean));
+    const engagedChefs = engagedChefIds.size;
+    const adoptionRate = chefs.length ? Math.round((engagedChefs / chefs.length) * 100) : 0;
+    const adoptionTrend = chefs.length
+      ? `${engagedChefs}/${chefs.length} chefs actifs${recentUserCount ? ` • +${recentUserCount} nouveaux profils (30j)` : ''}`
+      : recentUserCount > 0
+        ? `+${recentUserCount} nouveaux profils (30j)`
+        : 'Aucun chef enregistré';
 
-    const criticalIssueIds = new Set<string>();
-    projects.forEach((project) => {
-      if (project.status === 'paused' || project.spent > project.budget) {
-        criticalIssueIds.add(project.id);
-      }
+    const donors = users.filter((user) => user.role === 'donateur');
+    const donorProjects = projects.filter((project) => (project.donorAllocations?.length ?? 0) > 0);
+    const activeDonorIds = new Set<string>();
+    donorProjects.forEach((project) => {
+      project.donorAllocations?.forEach((donor) => activeDonorIds.add(donor.donorId));
     });
+    const activeDonors = activeDonorIds.size;
 
-    const criticalIssues = criticalIssueIds.size;
-
-    const totalIndicatorProgress = indicators.reduce((sum, indicator) => {
-      if (indicator.targetValue <= 0) {
-        return sum + (indicator.currentValue > 0 ? 100 : 0);
+    const projectProgress = (projectId: string) => {
+      const projectIndicators = indicators.filter((indicator) => indicator.projectId === projectId);
+      if (projectIndicators.length === 0) {
+        if (projects.length === 0) {
+          return 0;
+        }
+        const project = projects.find((item) => item.id === projectId);
+        if (!project) {
+          return 0;
+        }
+        const ratio = project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
+        return Math.round(Math.max(0, Math.min(100, ratio)));
       }
 
-      const progress = (indicator.currentValue / indicator.targetValue) * 100;
-      const clamped = Math.max(0, Math.min(100, progress));
-      return sum + clamped;
-    }, 0);
+      const total = projectIndicators.reduce((sum, indicator) => {
+        if (indicator.targetValue > 0) {
+          const progress = (indicator.currentValue / indicator.targetValue) * 100;
+          return sum + Math.max(0, Math.min(100, progress));
+        }
+        return sum + (indicator.currentValue > 0 ? 100 : 0);
+      }, 0);
 
-    const averageIndicatorProgress = indicators.length
-      ? Math.round(totalIndicatorProgress / indicators.length)
+      return Math.round(Math.max(0, Math.min(100, total / projectIndicators.length)));
+    };
+
+    const donorSatisfaction = donorProjects.length
+      ? Math.round(
+          donorProjects.reduce((sum, project) => sum + projectProgress(project.id), 0) /
+            donorProjects.length,
+        )
       : 0;
+    const donorSatisfactionScore = donorProjects.length
+      ? Math.round((donorSatisfaction / 20) * 10) / 10
+      : 0;
+
+    const overBudgetProjects = projects.filter((project) => project.spent > project.budget).length;
+    const pausedProjects = projects.filter((project) => project.status === 'paused').length;
+    const projectsWithinBudget = Math.max(projects.length - overBudgetProjects, 0);
+    const budgetCompliance = projects.length
+      ? Math.round((projectsWithinBudget / projects.length) * 100)
+      : 0;
+
+    const criticalIssues = overBudgetProjects + pausedProjects;
 
     return [
       {
-        label: 'Total Projects',
-        value: totalProjects,
-        icon: Briefcase,
+        label: 'Adoption Chefs de projet',
+        value: `${adoptionRate}%`,
+        icon: UserCheck,
         color: 'from-blue-500 to-blue-600',
-        trend: `${activeProjects} en cours • ${completedProjects} terminés`,
-        trendColor: activeProjects + completedProjects > 0 ? 'text-emerald-600' : 'text-muted-foreground',
+        trend: adoptionTrend,
+        trendColor: adoptionRate >= 70 ? 'text-emerald-600' : 'text-amber-600 dark:text-amber-400',
       },
       {
-        label: 'Total Users',
-        value: userMetrics.total,
-        icon: Users,
+        label: 'Satisfaction Donateurs',
+        value: `${donorSatisfactionScore.toFixed(1)}/5`,
+        icon: Smile,
         color: 'from-purple-500 to-purple-600',
-        trend:
-          userMetrics.newInLast30Days > 0
-            ? `+${userMetrics.newInLast30Days} sur 30j`
-            : '0 inscription sur 30j',
-        trendColor:
-          userMetrics.newInLast30Days > 0 ? 'text-emerald-600' : 'text-muted-foreground',
+        trend: donors.length
+          ? `${activeDonors}/${donors.length} donateurs engagés`
+          : `${activeDonors} donateurs engagés`,
+        trendColor: donorSatisfaction >= 60 ? 'text-emerald-600' : 'text-amber-600 dark:text-amber-400',
       },
       {
-        label: 'Active Indicators',
-        value: indicators.length,
-        icon: TrendingUp,
+        label: 'Respect du budget',
+        value: `${budgetCompliance}%`,
+        icon: Scale,
         color: 'from-emerald-500 to-emerald-600',
-        trend: `${averageIndicatorProgress}% progression moyenne`,
-        trendColor:
-          averageIndicatorProgress >= 50 ? 'text-emerald-600' : 'text-amber-600 dark:text-amber-400',
+        trend: `${projectsWithinBudget}/${projects.length} projets maîtrisés`,
+        trendColor: budgetCompliance >= 75 ? 'text-emerald-600' : 'text-amber-600 dark:text-amber-400',
       },
       {
-        label: 'Critical Issues',
+        label: 'Vulnérabilités critiques',
         value: criticalIssues,
-        icon: AlertCircle,
+        icon: ShieldAlert,
         color: 'from-red-500 to-red-600',
         trend:
           criticalIssues > 0
             ? `${overBudgetProjects} hors budget • ${pausedProjects} en pause`
-            : 'Aucun incident',
+            : 'Aucune anomalie majeure',
         trendColor:
           criticalIssues > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600',
       },
     ];
-  }, [projects, indicators, userMetrics]);
+  }, [projects, indicators, users, recentUserCount]);
 
   const projectsByStatus = [
     { name: 'En Cours', value: projects.filter((p) => p.status === 'enCours').length },
