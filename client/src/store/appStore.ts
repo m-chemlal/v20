@@ -22,6 +22,21 @@ interface AppStoreState {
       'id' | 'createdAt' | 'updatedAt' | 'donatorIds' | 'startDate' | 'endDate'
     > & { startDate: Date; endDate: Date | null; donatorIds?: string[] }
   ) => Promise<Project | null>;
+  updateProject: (
+    projectId: string,
+    project: {
+      name: string;
+      description: string;
+      status: Project['status'];
+      startDate: Date | string;
+      endDate: Date | string | null;
+      budget: number;
+      spent: number;
+      chefProjectId: string;
+      donatorIds?: string[];
+    }
+  ) => Promise<Project | null>;
+  deleteProject: (projectId: string) => Promise<boolean>;
   getIndicators: () => Indicator[];
   getIndicatorsByProject: (projectId: string) => Indicator[];
   fetchIndicatorsForProject: (projectId: string) => Promise<Indicator[]>;
@@ -69,6 +84,23 @@ function coerceNumber(value: any, fallback = 0): number {
     }
   }
   return fallback;
+}
+
+function toDateOnly(value: Date | string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().split('T')[0];
+  }
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
+  }
+  return null;
 }
 
 function mapProjectResponse(data: any): Project {
@@ -222,6 +254,57 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
           "Impossible de créer le projet. Vérifiez les informations saisies.",
       );
       return null;
+    }
+  },
+
+  async updateProject(projectId, project) {
+    try {
+      const payload = {
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        startDate: toDateOnly(project.startDate) ?? new Date().toISOString().split('T')[0],
+        endDate: toDateOnly(project.endDate),
+        budget: project.budget,
+        spent: project.spent,
+        chefProjectId: project.chefProjectId,
+        donatorIds: project.donatorIds ?? [],
+      };
+
+      const response = await projectsAPI.update(projectId, payload);
+      const updated = mapProjectResponse(response);
+      set((state) => ({
+        projects: state.projects.map((existing) =>
+          existing.id === updated.id ? updated : existing,
+        ),
+      }));
+      toast.success(`Projet "${updated.name}" mis à jour.`);
+      return updated;
+    } catch (error: any) {
+      console.error('Failed to update project', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de mettre à jour le projet. Vérifiez les informations fournies.",
+      );
+      return null;
+    }
+  },
+
+  async deleteProject(projectId) {
+    try {
+      await projectsAPI.delete(projectId);
+      set((state) => ({
+        projects: state.projects.filter((project) => project.id !== projectId),
+      }));
+      toast.success('Projet supprimé avec succès.');
+      return true;
+    } catch (error: any) {
+      console.error('Failed to delete project', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de supprimer le projet. Réessayez plus tard.",
+      );
+      return false;
     }
   },
 

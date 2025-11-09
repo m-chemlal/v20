@@ -133,6 +133,15 @@ export const projectsAPI = {
     const response = await api.post('/projects', projectData);
     return response.data;
   },
+
+  update: async (id: string, projectData: any) => {
+    const response = await api.put(`/projects/${id}`, projectData);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    await api.delete(`/projects/${id}`);
+  },
 };
 
 // Indicators API

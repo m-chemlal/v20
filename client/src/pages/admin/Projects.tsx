@@ -16,15 +16,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AddProjectForm } from '@/components/AddProjectForm';
+import { EditProjectForm } from '@/components/EditProjectForm';
 import { useAppStore } from '@/store/appStore';
-import { toast } from 'sonner';
 
 export default function AdminProjects() {
   const projects = useAppStore((state) => state.projects);
   const isLoading = useAppStore((state) => state.isLoading);
   const fetchProjects = useAppStore((state) => state.fetchProjects);
   const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const deleteProject = useAppStore((state) => state.deleteProject);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!loadedProjects) {
@@ -32,13 +35,60 @@ export default function AdminProjects() {
     }
   }, [loadedProjects, fetchProjects]);
 
+  const openAddModal = () => {
+    setModalMode('add');
+    setSelectedProject(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (project: Project) => {
+    setModalMode('edit');
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
   const handleProjectAdded = async () => {
     setIsModalOpen(false);
     await fetchProjects({ force: true });
   };
 
-  const handleDelete = () => {
-    toast.info('La suppression de projet sera disponible prochainement.');
+  const handleProjectUpdated = async () => {
+    setIsModalOpen(false);
+    await fetchProjects({ force: true });
+  };
+
+  const handleDelete = async (project: Project) => {
+    const confirmed = window.confirm(
+      `Voulez-vous vraiment supprimer le projet "${project.name}" ? Cette action est irréversible.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const success = await deleteProject(project.id);
+    if (success) {
+      await fetchProjects({ force: true });
+    }
+  };
+
+  const safeNumber = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+  const formatCurrency = (value: number | null | undefined) =>
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+      safeNumber(value),
+    );
+
+  const formatDateValue = (value: Date | string | null | undefined) => {
+    if (!value) {
+      return '—';
+    }
+    const dateValue = value instanceof Date ? value : new Date(value);
+    if (!isValid(dateValue)) {
+      return '—';
+    }
+    return format(dateValue, 'dd MMM yyyy', { locale: fr });
   };
 
   const safeNumber = (value: number | null | undefined) =>
@@ -138,7 +188,12 @@ export default function AdminProjects() {
       id: 'actions',
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="sm" className="gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1"
+            onClick={() => openEditModal(row.original)}
+          >
             <Edit2 className="w-4 h-4" />
             Modifier
           </Button>
@@ -146,7 +201,7 @@ export default function AdminProjects() {
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive gap-1"
-            onClick={() => handleDelete()}
+            onClick={() => handleDelete(row.original)}
           >
             <Trash2 className="w-4 h-4" />
             Supprimer
@@ -171,7 +226,7 @@ export default function AdminProjects() {
             isLoading={isLoading}
             filterColumnId="name"
             filterPlaceholder="Rechercher par nom de projet..."
-            onAddNew={() => setIsModalOpen(true)}
+            onAddNew={openAddModal}
             addNewLabel="Ajouter Projet"
           />
         </Card>
@@ -203,12 +258,26 @@ export default function AdminProjects() {
         </div>
       </motion.div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            setSelectedProject(null);
+            setModalMode('add');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Créer un nouveau projet</DialogTitle>
+            <DialogTitle>
+              {modalMode === 'add' ? 'Créer un nouveau projet' : 'Modifier le projet'}
+            </DialogTitle>
           </DialogHeader>
-          <AddProjectForm onProjectAdded={handleProjectAdded} />
+          {modalMode === 'add' && <AddProjectForm onProjectAdded={handleProjectAdded} />}
+          {modalMode === 'edit' && selectedProject && (
+            <EditProjectForm project={selectedProject} onProjectUpdated={handleProjectUpdated} />
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
