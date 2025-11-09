@@ -1,19 +1,13 @@
+import { useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
-import {
-  DollarSign,
-  Calendar,
-  TrendingUp,
-  ArrowLeft,
-  Download,
-  BarChart3,
-} from 'lucide-react';
+import { DollarSign, Calendar, TrendingUp, ArrowLeft, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRoute, useLocation } from 'wouter';
-import { Indicator } from '@/types/project';
+import { Indicator, IndicatorEntry } from '@/types/project';
 import {
   LineChart,
   Line,
@@ -27,14 +21,10 @@ import { toast } from 'sonner';
 
 interface IndicatorChartProps {
   indicator: Indicator;
+  entries: IndicatorEntry[];
 }
 
-const IndicatorChart = ({ indicator }: IndicatorChartProps) => {
-  const { getEntriesByIndicator } = useAppStore();
-  const entries = getEntriesByIndicator(indicator.id).sort(
-    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-  );
-
+const IndicatorChart = ({ indicator, entries }: IndicatorChartProps) => {
   const chartData = entries.map((entry) => ({
     date: format(entry.createdAt, 'MMM dd'),
     value: entry.value,
@@ -62,7 +52,14 @@ const IndicatorChart = ({ indicator }: IndicatorChartProps) => {
 export default function DonateurProjectDetails() {
   const [match, params] = useRoute('/donateur/projects/:id');
   const [, navigate] = useLocation();
-  const { getProjectById, getIndicatorsByProject } = useAppStore();
+  const fetchIndicatorEntries = useAppStore((state) => state.fetchIndicatorEntries);
+  const indicatorEntries = useAppStore((state) => state.indicatorEntries);
+  const project = useAppStore((state) =>
+    params?.id ? state.getProjectById(params.id) : undefined,
+  );
+  const indicators = useAppStore((state) =>
+    params?.id ? state.getIndicatorsByProject(params.id) : [],
+  );
 
   if (!match || !params?.id) {
     return (
@@ -72,9 +69,6 @@ export default function DonateurProjectDetails() {
     );
   }
 
-  const project = getProjectById(params.id);
-  const indicators = getIndicatorsByProject(params.id);
-
   if (!project) {
     return (
       <DashboardLayout title="Détails du Projet">
@@ -82,6 +76,24 @@ export default function DonateurProjectDetails() {
       </DashboardLayout>
     );
   }
+
+  useEffect(() => {
+    indicators.forEach((indicator) => {
+      fetchIndicatorEntries(indicator.id);
+    });
+  }, [indicators, fetchIndicatorEntries]);
+
+  const entriesByIndicator = useMemo(() => {
+    const grouped = new Map<string, IndicatorEntry[]>();
+    indicators.forEach((indicator) => {
+      const entries = indicatorEntries
+        .filter((entry) => entry.indicatorId === indicator.id)
+        .slice()
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      grouped.set(indicator.id, entries);
+    });
+    return grouped;
+  }, [indicators, indicatorEntries]);
 
   const avgProgress = indicators.length
     ? Math.round(
@@ -163,7 +175,7 @@ export default function DonateurProjectDetails() {
                 <p className="text-sm text-muted-foreground">Durée</p>
                 <p className="font-semibold">
                   {format(project.startDate, 'MMM dd, yyyy')} -{' '}
-                  {format(project.endDate, 'MMM dd, yyyy')}
+                  {project.endDate ? format(project.endDate, 'MMM dd, yyyy') : 'En cours'}
                 </p>
               </div>
             </div>
@@ -222,7 +234,11 @@ export default function DonateurProjectDetails() {
         <h3 className="text-xl font-semibold pt-4">Historique des Indicateurs</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {indicators.map((indicator) => (
-            <IndicatorChart key={indicator.id} indicator={indicator} />
+            <IndicatorChart
+              key={indicator.id}
+              indicator={indicator}
+              entries={entriesByIndicator.get(indicator.id) ?? []}
+            />
           ))}
         </div>
       </motion.div>
