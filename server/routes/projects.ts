@@ -1,11 +1,28 @@
 import { Router } from 'express';
+import type { QueryResultRow } from 'pg';
 import { z } from 'zod';
 import { getPool, query } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-function mapProject(row: any) {
+interface ProjectRow extends QueryResultRow {
+  id: number;
+  name: string;
+  description: string;
+  status: 'planning' | 'enCours' | 'completed' | 'paused';
+  start_date: Date;
+  end_date: Date | null;
+  budget: string | number;
+  spent: string | number;
+  admin_id: number | null;
+  chef_project_id: number;
+  created_at: Date;
+  updated_at: Date;
+  donor_ids?: number[] | null;
+}
+
+function mapProject(row: ProjectRow) {
   return {
     id: row.id.toString(),
     name: row.name,
@@ -44,7 +61,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
 
   baseQuery += ' GROUP BY p.id ORDER BY p.created_at DESC';
 
-  const result = await pool.query(baseQuery, params);
+  const result = await pool.query<ProjectRow>(baseQuery, params);
   return res.json(result.rows.map(mapProject));
 });
 
@@ -52,7 +69,7 @@ router.get('/:projectId', requireAuth, async (req: AuthenticatedRequest, res) =>
   const user = req.user!;
   const { projectId } = req.params;
 
-  const baseProject = await query(
+  const baseProject = await query<ProjectRow>(
     `SELECT p.*, COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
      FROM projects p
      LEFT JOIN project_donors pd ON pd.project_id = p.id
@@ -99,7 +116,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
   const payload = parsed.data;
   const pool = await getPool();
 
-  const insertResult = await pool.query(
+  const insertResult = await pool.query<ProjectRow>(
     `INSERT INTO projects (name, description, status, start_date, end_date, budget, spent, admin_id, chef_project_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
      RETURNING *`,
@@ -125,7 +142,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
     }
   }
 
-  const donors = await pool.query<{ user_id: number }>(
+  const donors = await pool.query<{ user_id: number } & QueryResultRow>(
     `SELECT user_id FROM project_donors WHERE project_id = $1`,
     [projectRow.id],
   );

@@ -1,11 +1,12 @@
 import { Router } from 'express';
+import type { QueryResultRow } from 'pg';
 import { z } from 'zod';
 import { getPool, query } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-interface IndicatorRow {
+interface IndicatorRow extends QueryResultRow {
   id: number;
   project_id: number;
   name: string;
@@ -17,7 +18,7 @@ interface IndicatorRow {
   updated_at: Date;
 }
 
-interface IndicatorEntryRow {
+interface IndicatorEntryRow extends QueryResultRow {
   id: number;
   indicator_id: number;
   value: string | number;
@@ -29,7 +30,17 @@ interface IndicatorEntryRow {
   last_name: string | null;
 }
 
-function canAccessProject(user: { id: number; role: 'admin' | 'chef_projet' | 'donateur' }, project: any) {
+interface ProjectAccessRow extends QueryResultRow {
+  chef_project_id: number;
+  donor_ids: number[];
+}
+
+interface IndicatorWithProjectAccessRow extends IndicatorRow, ProjectAccessRow {}
+
+function canAccessProject(
+  user: { id: number; role: 'admin' | 'chef_projet' | 'donateur' },
+  project: ProjectAccessRow,
+) {
   if (user.role === 'admin') {
     return true;
   }
@@ -44,7 +55,7 @@ function canAccessProject(user: { id: number; role: 'admin' | 'chef_projet' | 'd
 
 router.get('/project/:projectId', requireAuth, async (req: AuthenticatedRequest, res) => {
   const { projectId } = req.params;
-  const projectResult = await query(
+  const projectResult = await query<ProjectAccessRow>(
     `SELECT p.id, p.chef_project_id,
             COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
      FROM projects p
@@ -101,7 +112,7 @@ router.post('/', requireAuth, requireRole('admin', 'chef_projet'), async (req: A
   const payload = parsed.data;
   const projectId = Number(payload.projectId);
 
-  const projectResult = await query(
+  const projectResult = await query<ProjectAccessRow>(
     `SELECT p.id, p.chef_project_id,
             COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
      FROM projects p
@@ -162,7 +173,7 @@ router.put('/:indicatorId', requireAuth, requireRole('admin', 'chef_projet'), as
   }
 
   const indicatorId = Number(req.params.indicatorId);
-  const indicatorResult = await query(
+  const indicatorResult = await query<IndicatorWithProjectAccessRow>(
     `SELECT i.*, p.chef_project_id,
             COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
      FROM indicators i
@@ -178,7 +189,11 @@ router.put('/:indicatorId', requireAuth, requireRole('admin', 'chef_projet'), as
   }
 
   const indicatorRow = indicatorResult.rows[0];
-  if (!canAccessProject(req.user!, indicatorRow)) {
+  const accessScope: ProjectAccessRow = {
+    chef_project_id: indicatorRow.chef_project_id,
+    donor_ids: indicatorRow.donor_ids,
+  };
+  if (!canAccessProject(req.user!, accessScope)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 
@@ -196,7 +211,7 @@ router.put('/:indicatorId', requireAuth, requireRole('admin', 'chef_projet'), as
     [indicatorId, parsed.data.currentValue, parsed.data.notes, parsed.data.evidence ?? null, req.user!.id],
   );
 
-  const updated = await query(`SELECT * FROM indicators WHERE id = $1`, [indicatorId]);
+  const updated = await query<IndicatorRow>(`SELECT * FROM indicators WHERE id = $1`, [indicatorId]);
   const row = updated.rows[0];
 
   return res.json({
@@ -214,7 +229,7 @@ router.put('/:indicatorId', requireAuth, requireRole('admin', 'chef_projet'), as
 
 router.get('/:indicatorId/entries', requireAuth, async (req: AuthenticatedRequest, res) => {
   const indicatorId = Number(req.params.indicatorId);
-  const indicatorResult = await query(
+  const indicatorResult = await query<IndicatorWithProjectAccessRow>(
     `SELECT i.*, p.chef_project_id,
             COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
      FROM indicators i
@@ -230,7 +245,11 @@ router.get('/:indicatorId/entries', requireAuth, async (req: AuthenticatedReques
   }
 
   const indicatorRow = indicatorResult.rows[0];
-  if (!canAccessProject(req.user!, indicatorRow)) {
+  const accessScope: ProjectAccessRow = {
+    chef_project_id: indicatorRow.chef_project_id,
+    donor_ids: indicatorRow.donor_ids,
+  };
+  if (!canAccessProject(req.user!, accessScope)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 

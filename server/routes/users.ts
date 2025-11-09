@@ -1,10 +1,20 @@
 import { Router } from 'express';
+import type { QueryResultRow } from 'pg';
 import { z } from 'zod';
 import { getPool, query } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 import { hashPassword } from '../auth';
 
 const router = Router();
+
+interface UserSummaryRow extends QueryResultRow {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: 'admin' | 'chef_projet' | 'donateur';
+  created_at: Date;
+}
 
 router.get('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
   const role = req.query.role as string | undefined;
@@ -16,14 +26,7 @@ router.get('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequ
   }
   text += ' ORDER BY created_at DESC';
 
-  const result = await query<{
-    id: number;
-    email: string;
-    first_name: string;
-    last_name: string;
-    role: 'admin' | 'chef_projet' | 'donateur';
-    created_at: Date;
-  }>(text, params);
+  const result = await query<UserSummaryRow>(text, params);
   return res.json(
     result.rows.map((row) => ({
       id: row.id,
@@ -59,14 +62,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
   }
 
   const passwordHash = await hashPassword(payload.password);
-  const result = await pool.query<{
-    id: number;
-    email: string;
-    first_name: string;
-    last_name: string;
-    role: 'admin' | 'chef_projet' | 'donateur';
-    created_at: Date;
-  }>(
+  const result = await pool.query<UserSummaryRow>(
     `INSERT INTO users (email, password_hash, first_name, last_name, role)
      VALUES ($1,$2,$3,$4,$5)
      RETURNING id, email, first_name, last_name, role, created_at`,

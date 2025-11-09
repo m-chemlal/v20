@@ -27,7 +27,7 @@ ImpactTracker est un portail web qui permet à l'ONG ImpactSolidaire de suivre s
    - Ajustez si besoin les valeurs suivantes dans `.env` :
      - `VITE_API_URL` : URL de l'API (par défaut `http://localhost:4000/api`)
      - `ACCESS_TOKEN_SECRET` et `REFRESH_TOKEN_SECRET` : secrets JWT (32+ caractères chacun)
-     - `DATABASE_URL` : chaîne de connexion PostgreSQL (optionnelle)
+    - `DATABASE_URL` : chaîne de connexion PostgreSQL (optionnelle) ou `file:./data/dev.sqlite` pour SQLite local
      - `CORS_ORIGINS` : domaines autorisés pour le frontend
 
    > Sans `DATABASE_URL`, l'API utilise automatiquement une base PostgreSQL en mémoire avec des données de démonstration.
@@ -68,6 +68,30 @@ Les identifiants de démonstration (créés au démarrage du backend) sont :
   ```bash
   pnpm start
   ```
+
+## 🗃️ Utilisation d'une base SQLite locale
+
+Si vous préférez travailler avec SQLite plutôt qu'avec PostgreSQL :
+
+1. Copiez (ou créez) votre fichier `.env` puis remplacez la valeur de `DATABASE_URL` par :
+   ```env
+   DATABASE_URL=file:./data/dev.sqlite
+   ```
+2. Créez le dossier et le fichier de base de données :
+   ```bash
+   mkdir -p data
+   touch data/dev.sqlite
+   ```
+   Sous Windows PowerShell :
+   ```powershell
+   mkdir data
+   ni data/dev.sqlite -ItemType File
+   ```
+3. Installez le driver SQLite si votre gestionnaire de base de données l'exige (ex. Prisma, Sequelize) :
+   ```bash
+   pnpm add sqlite3
+   ```
+4. Relancez l'API avec `pnpm dev:server`. Les tables seront créées au démarrage si elles n'existent pas.
 
 ## 🗃️ Utilisation d'une base PostgreSQL réelle
 
