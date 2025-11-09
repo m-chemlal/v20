@@ -11,7 +11,7 @@ interface AppStoreState {
   error: string | null;
   inactivityTimeout: NodeJS.Timeout | null;
   loadedProjects: boolean;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (options?: { force?: boolean }) => Promise<void>;
   refreshProject: (projectId: string) => Promise<void>;
   getProjects: () => Project[];
   getProjectById: (id: string) => Project | undefined;
@@ -39,25 +39,63 @@ interface AppStoreState {
   clearData: () => void;
 }
 
+function parseDate(value: any): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
+
+function requireDate(value: any, fallback?: Date): Date {
+  return parseDate(value) ?? fallback ?? new Date();
+}
+
+function coerceNumber(value: any, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
 function mapProjectResponse(data: any): Project {
   const adminRaw = data.adminId ?? data.admin_id;
   const chefRaw = data.chefProjectId ?? data.chef_project_id;
   const donorRaw =
-    Array.isArray(data.donatorIds) ? data.donatorIds : Array.isArray(data.donor_ids) ? data.donor_ids : [];
+    Array.isArray(data.donatorIds)
+      ? data.donatorIds
+      : Array.isArray(data.donor_ids)
+        ? data.donor_ids
+        : [];
+  const startSource = data.startDate ?? data.start_date ?? data.createdAt ?? data.created_at;
+  const endSource = data.endDate ?? data.end_date ?? null;
   return {
     id: data.id.toString(),
     name: data.name,
     description: data.description,
     status: data.status,
-    startDate: new Date(data.startDate ?? data.start_date ?? data.createdAt),
-    endDate: data.endDate ? new Date(data.endDate) : data.end_date ? new Date(data.end_date) : null,
-    budget: Number(data.budget),
-    spent: Number(data.spent ?? 0),
+    startDate: requireDate(startSource),
+    endDate: parseDate(endSource),
+    budget: coerceNumber(data.budget),
+    spent: coerceNumber(data.spent ?? data.spent_amount ?? 0),
     adminId: adminRaw != null ? adminRaw.toString() : null,
     chefProjectId: chefRaw != null ? chefRaw.toString() : '',
     donatorIds: donorRaw.map((id: any) => id.toString()),
-    createdAt: new Date(data.createdAt ?? data.created_at ?? Date.now()),
-    updatedAt: new Date(data.updatedAt ?? data.updated_at ?? Date.now()),
+    createdAt: requireDate(data.createdAt ?? data.created_at ?? Date.now()),
+    updatedAt: requireDate(data.updatedAt ?? data.updated_at ?? Date.now()),
   };
 }
 
@@ -97,8 +135,20 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   inactivityTimeout: null,
   loadedProjects: false,
 
-  async fetchProjects() {
+  async fetchProjects(options = {}) {
+    const { force = false } = options;
+    const { loadedProjects, isLoading } = get();
+
+    if (isLoading) {
+      return;
+    }
+
+    if (loadedProjects && !force) {
+      return;
+    }
+
     set({ isLoading: true, error: null });
+
     try {
       const data = await projectsAPI.getAll();
       const projects = data.map(mapProjectResponse);
@@ -107,6 +157,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       console.error('Failed to load projects', error);
       set({
         isLoading: false,
+        loadedProjects: true,
         error:
           error?.response?.data?.message ??
           "Impossible de charger les projets. Vérifiez la connexion avec l'API.",
