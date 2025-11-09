@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,9 +38,19 @@ export default function DonateurProjects() {
     [getProjectsByUser, user?.id, user?.role],
   );
 
+  const loadedIndicatorsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadedIndicatorsRef.current.clear();
+  }, [user?.id]);
+
   useEffect(() => {
     fundedProjects.forEach((project) => {
-      fetchIndicatorsForProject(project.id);
+      if (loadedIndicatorsRef.current.has(project.id)) {
+        return;
+      }
+      loadedIndicatorsRef.current.add(project.id);
+      void fetchIndicatorsForProject(project.id);
     });
   }, [fundedProjects, fetchIndicatorsForProject]);
 

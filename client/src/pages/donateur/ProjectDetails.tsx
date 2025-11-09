@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,18 +53,58 @@ const IndicatorChart = ({ indicator, entries }: IndicatorChartProps) => {
 export default function DonateurProjectDetails() {
   const [match, params] = useRoute('/donateur/projects/:id');
   const [, navigate] = useLocation();
+  const projectId = params?.id ?? '';
+  const isInvalidRoute = !match || !projectId;
   const fetchIndicatorEntries = useAppStore((state) => state.fetchIndicatorEntries);
   const fetchIndicatorsForProject = useAppStore((state) => state.fetchIndicatorsForProject);
   const refreshProject = useAppStore((state) => state.refreshProject);
   const indicatorEntries = useAppStore((state) => state.indicatorEntries);
   const project = useAppStore((state) =>
-    params?.id ? state.getProjectById(params.id) : undefined,
+    projectId ? state.getProjectById(projectId) : undefined,
   );
-  const indicators = useAppStore((state) =>
-    params?.id ? state.getIndicatorsByProject(params.id) : [],
+  const allIndicators = useAppStore((state) => state.indicators);
+  const projectIndicators = useMemo(
+    () =>
+      projectId
+        ? allIndicators.filter((indicator) => indicator.projectId === projectId)
+        : [],
+    [allIndicators, projectId],
   );
+  const loadedIndicatorsRef = useRef<Set<string>>(new Set());
 
-  if (!match || !params?.id) {
+  useEffect(() => {
+    if (!projectId || project) {
+      return;
+    }
+    void refreshProject(projectId);
+  }, [projectId, project, refreshProject]);
+
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+    void fetchIndicatorsForProject(projectId);
+  }, [projectId, fetchIndicatorsForProject]);
+
+  useEffect(() => {
+    loadedIndicatorsRef.current.clear();
+  }, [projectId]);
+
+  useEffect(() => {
+    if (projectIndicators.length === 0) {
+      return;
+    }
+
+    projectIndicators.forEach((indicator) => {
+      if (loadedIndicatorsRef.current.has(indicator.id)) {
+        return;
+      }
+      loadedIndicatorsRef.current.add(indicator.id);
+      void fetchIndicatorEntries(indicator.id);
+    });
+  }, [projectIndicators, fetchIndicatorEntries]);
+
+  if (isInvalidRoute) {
     return (
       <DashboardLayout title="Détails du Projet">
         <div className="text-center py-10">Projet introuvable.</div>
@@ -75,35 +115,14 @@ export default function DonateurProjectDetails() {
   if (!project) {
     return (
       <DashboardLayout title="Détails du Projet">
-        <div className="text-center py-10">Projet introuvable.</div>
+        <div className="text-center py-10">Chargement du projet...</div>
       </DashboardLayout>
     );
   }
 
-  useEffect(() => {
-    if (params?.id && !project) {
-      void refreshProject(params.id);
-    }
-  }, [params?.id, project, refreshProject]);
-
-  useEffect(() => {
-    if (params?.id) {
-      void fetchIndicatorsForProject(params.id);
-    }
-  }, [params?.id, fetchIndicatorsForProject]);
-
-  useEffect(() => {
-    if (indicators.length === 0) {
-      return;
-    }
-    indicators.forEach((indicator) => {
-      void fetchIndicatorEntries(indicator.id);
-    });
-  }, [indicators, fetchIndicatorEntries]);
-
   const entriesByIndicator = useMemo(() => {
     const grouped = new Map<string, IndicatorEntry[]>();
-    indicators.forEach((indicator) => {
+    projectIndicators.forEach((indicator) => {
       const entries = indicatorEntries
         .filter((entry) => entry.indicatorId === indicator.id)
         .slice()
@@ -111,14 +130,14 @@ export default function DonateurProjectDetails() {
       grouped.set(indicator.id, entries);
     });
     return grouped;
-  }, [indicators, indicatorEntries]);
+  }, [projectIndicators, indicatorEntries]);
 
-  const avgProgress = indicators.length
+  const avgProgress = projectIndicators.length
     ? Math.round(
-        indicators.reduce(
+        projectIndicators.reduce(
           (sum, ind) => sum + (ind.currentValue / ind.targetValue) * 100,
           0
-        ) / indicators.length
+        ) / projectIndicators.length
       )
     : 0;
 
@@ -161,7 +180,7 @@ export default function DonateurProjectDetails() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-3 flex-wrap">
           <Button
             variant="outline"
             onClick={() => navigate('/donateur/projects')}
@@ -170,10 +189,10 @@ export default function DonateurProjectDetails() {
             <ArrowLeft className="w-4 h-4" />
             Retour aux Projets
           </Button>
-            <Button onClick={handlePdfExport} className="gap-2">
-              <Download className="w-4 h-4" />
-              Exporter le rapport PDF
-            </Button>
+          <Button onClick={handlePdfExport} className="gap-2">
+            <Download className="w-4 h-4" />
+            Exporter le rapport PDF
+          </Button>
         </div>
 
         {/* Project Info */}
@@ -224,9 +243,11 @@ export default function DonateurProjectDetails() {
         </Card>
 
         {/* Indicators Section */}
-        <h3 className="text-xl font-semibold">Indicateurs Clés ({indicators.length})</h3>
+        <h3 className="text-xl font-semibold">
+          Indicateurs Clés ({projectIndicators.length})
+        </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {indicators.map((indicator) => (
+          {projectIndicators.map((indicator) => (
             <Card key={indicator.id} className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <h4 className="text-lg font-semibold">{indicator.name}</h4>
@@ -274,7 +295,7 @@ export default function DonateurProjectDetails() {
         {/* Indicator History Charts */}
         <h3 className="text-xl font-semibold pt-4">Historique des Indicateurs</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {indicators.map((indicator) => (
+          {projectIndicators.map((indicator) => (
             <IndicatorChart
               key={indicator.id}
               indicator={indicator}
