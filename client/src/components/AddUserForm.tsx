@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserRole } from "@/types/auth";
+import { User, UserRole } from "@/types/auth";
 import { Loader2 } from "lucide-react";
-import { useAppStore } from "@/store/appStore";
+import { usersAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Le prénom doit contenir au moins 2 caractères." }),
@@ -20,37 +21,53 @@ const formSchema = z.object({
 
 type AddUserFormData = z.infer<typeof formSchema>;
 
-export function AddUserForm({ onUserAdded }: { onUserAdded: () => void }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AddUserFormData>({
+export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => void }) {
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<AddUserFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       role: 'donateur',
     }
   });
-  const { showToast } = useAppStore();
-
   const onSubmit = async (data: AddUserFormData) => {
-    // In a real application, this would be an API call to the backend to create a user.
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const randomPassword =
+        (typeof window !== 'undefined' && window.crypto?.randomUUID?.()) ||
+        `${Date.now().toString(36)}${Math.random().toString(36).slice(-6)}aA1!`;
 
-      // In a real app, the admin would create the user, not sign them up.
-      // Since we don't have a backend, we'll just show a success message.
-      console.log("Simulating user creation:", data);
-
-      showToast({
-        title: "Utilisateur créé",
-        description: `L'utilisateur ${data.firstName} ${data.lastName} a été créé avec le rôle ${data.role}.`,
-        variant: "success",
+      const response = await usersAPI.create({
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        password: randomPassword,
       });
-      onUserAdded();
-    } catch (error) {
-      showToast({
-        title: "Erreur",
-        description: "Échec de la création de l'utilisateur.",
-        variant: "error",
+      toast.success(`Utilisateur ${data.firstName} ${data.lastName} créé.`);
+      reset({
+        firstName: '',
+        lastName: '',
+        email: '',
+        role: 'donateur',
+        password: undefined,
       });
+      const createdUser: User = {
+        id: response.id.toString(),
+        email: response.email,
+        firstName: response.firstName,
+        lastName: response.lastName,
+        name: `${response.firstName} ${response.lastName}`.trim(),
+        role: response.role,
+        createdAt: new Date(response.createdAt ?? Date.now()),
+        avatar:
+          response.avatar ??
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
+      };
+      onUserAdded?.(createdUser);
+    } catch (error: any) {
+      console.error('Failed to create user', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de créer l'utilisateur. Vérifiez les informations fournies.",
+      );
     }
   };
 
@@ -77,7 +94,10 @@ export function AddUserForm({ onUserAdded }: { onUserAdded: () => void }) {
 
       <div className="space-y-2">
         <Label htmlFor="role">Rôle</Label>
-        <Select onValueChange={(value) => register("role").onChange({ target: { value } })} defaultValue="donateur">
+        <Select
+          value={watch('role') || 'donateur'}
+          onValueChange={(value) => setValue('role', value as UserRole, { shouldValidate: true })}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Sélectionner un rôle" />
           </SelectTrigger>

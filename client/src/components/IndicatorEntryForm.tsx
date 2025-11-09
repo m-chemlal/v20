@@ -1,52 +1,67 @@
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, CheckCircle } from "lucide-react";
-import { useAppStore } from "@/store/appStore";
-import { Indicator } from "@/types/project";
-import { useState } from "react";
+import { useForm, Controller, Resolver } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Upload, CheckCircle } from 'lucide-react';
+import { useAppStore } from '@/store/appStore';
+import { Indicator } from '@/types/project';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 const formSchema = z.object({
-  indicatorId: z.string().min(1, { message: "Veuillez sélectionner un indicateur." }),
-  value: z.number().min(0, { message: "La valeur doit être positive." }),
+  indicatorId: z.string().min(1, { message: 'Veuillez sélectionner un indicateur.' }),
+  value: z.coerce.number()
+    .refine((val) => !Number.isNaN(val), {
+      message: 'La valeur doit être un nombre.',
+    })
+    .min(0, { message: 'La valeur doit être positive.' }),
   notes: z.string().optional(),
-  evidenceFile: z.any().optional(), // File upload simulation
+  evidenceFile: z.any().optional(),
 });
 
 type IndicatorEntryFormData = z.infer<typeof formSchema>;
 
-export function IndicatorEntryForm({ onEntryAdded, indicators }: { onEntryAdded: () => void, indicators: Indicator[] }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<IndicatorEntryFormData>({
-    resolver: zodResolver(formSchema),
+export function IndicatorEntryForm({
+  onEntryAdded,
+  indicators,
+}: {
+  onEntryAdded: () => void;
+  indicators: Indicator[];
+}) {
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<IndicatorEntryFormData, any, IndicatorEntryFormData>({
+    resolver: zodResolver(formSchema) as Resolver<IndicatorEntryFormData, any, IndicatorEntryFormData>,
   });
-  const { showToast } = useAppStore();
+  const { updateIndicatorValue } = useAppStore();
   const [fileUploaded, setFileUploaded] = useState(false);
 
   const onSubmit = async (data: IndicatorEntryFormData) => {
-    // In a real application, this would be an API call to the backend to create an indicator entry.
+    const indicator = indicators.find((item) => item.id === data.indicatorId);
+    if (!indicator) {
+      toast.error('Indicateur introuvable.');
+      return;
+    }
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      console.log("Simulating indicator entry:", data);
-
-      showToast({
-        title: "Entrée d'indicateur enregistrée",
-        description: `La valeur ${data.value} a été enregistrée pour l'indicateur.`,
-        variant: "success",
+      await updateIndicatorValue(indicator.id, {
+        value: data.value,
+        notes: data.notes,
       });
+      toast.success("Entrée d'indicateur enregistrée.");
+      reset();
+      setFileUploaded(false);
       onEntryAdded();
     } catch (error) {
-      showToast({
-        title: "Erreur",
-        description: "Échec de l'enregistrement de l'entrée d'indicateur.",
-        variant: "error",
-      });
+      toast.error("Échec de l'enregistrement de l'entrée d'indicateur.");
     }
   };
 
@@ -54,31 +69,38 @@ export function IndicatorEntryForm({ onEntryAdded, indicators }: { onEntryAdded:
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="indicatorId">Indicateur</Label>
-        <Select onValueChange={(value) => register("indicatorId").onChange({ target: { value } })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Sélectionner un indicateur" />
-          </SelectTrigger>
-          <SelectContent>
-            {indicators.map((indicator) => (
-              <SelectItem key={indicator.id} value={indicator.id}>
-                {indicator.name} ({indicator.unit})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.indicatorId && <p className="text-red-500 text-xs">{errors.indicatorId.message}</p>}
+        <Controller
+          control={control}
+          name="indicatorId"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un indicateur" />
+              </SelectTrigger>
+              <SelectContent>
+                {indicators.map((indicator) => (
+                  <SelectItem key={indicator.id} value={indicator.id}>
+                    {indicator.name} ({indicator.unit})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.indicatorId && (
+          <p className="text-red-500 text-xs">{errors.indicatorId.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="value">Nouvelle Valeur</Label>
-        <Input id="value" type="number" {...register("value", { valueAsNumber: true })} />
+        <Input id="value" type="number" {...register('value', { valueAsNumber: true })} />
         {errors.value && <p className="text-red-500 text-xs">{errors.value.message}</p>}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notes/Commentaires</Label>
-        <Textarea id="notes" {...register("notes")} rows={3} />
-        {errors.notes && <p className="text-red-500 text-xs">{errors.notes.message}</p>}
+        <Textarea id="notes" {...register('notes')} rows={3} />
       </div>
 
       <div className="space-y-2">
@@ -88,18 +110,20 @@ export function IndicatorEntryForm({ onEntryAdded, indicators }: { onEntryAdded:
             id="evidenceFile"
             type="file"
             className="hidden"
-            {...register("evidenceFile")}
+            {...register('evidenceFile')}
             onChange={() => setFileUploaded(true)}
           />
           <Label htmlFor="evidenceFile" className="flex-1">
             <Button type="button" variant="outline" className="w-full">
               <Upload className="w-4 h-4 mr-2" />
-              {fileUploaded ? "Fichier sélectionné" : "Sélectionner un fichier"}
+              {fileUploaded ? 'Fichier sélectionné' : 'Sélectionner un fichier'}
             </Button>
           </Label>
           {fileUploaded && <CheckCircle className="w-5 h-5 text-green-500" />}
         </div>
-        <p className="text-xs text-muted-foreground">Ceci simule l'upload d'une preuve (photo, document, etc.).</p>
+        <p className="text-xs text-muted-foreground">
+          Ceci simule l'upload d'une preuve (photo, document, etc.).
+        </p>
       </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
