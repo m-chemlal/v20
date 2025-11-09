@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,15 +10,32 @@ import { useLocation } from 'wouter';
 import { Search, Eye, Download, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import type { Project } from '@/types/project';
+import { generateProjectReportPdf } from '@/utils/projectReports';
 
 export default function DonateurProjects() {
   const { user } = useAuthStore();
-  const { projects, indicators, fetchIndicatorsForProject } = useAppStore();
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const indicators = useAppStore((state) => state.indicators);
+  const fetchIndicatorsForProject = useAppStore(
+    (state) => state.fetchIndicatorsForProject,
+  );
+  const fetchIndicatorEntries = useAppStore((state) => state.fetchIndicatorEntries);
+  const refreshProject = useAppStore((state) => state.refreshProject);
   const [searchTerm, setSearchTerm] = useState('');
   const [, navigate] = useLocation();
 
-  const fundedProjects = projects.filter((project) =>
-    project.donatorIds.includes(user?.id || ''),
+  useEffect(() => {
+    if (user && !loadedProjects) {
+      fetchProjects();
+    }
+  }, [user, loadedProjects, fetchProjects]);
+
+  const fundedProjects = useMemo(
+    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+    [getProjectsByUser, user?.id, user?.role],
   );
 
   useEffect(() => {
@@ -33,10 +50,36 @@ export default function DonateurProjects() {
       project.description.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const handlePdfExport = (projectName: string) => {
-    toast.success(
-      `Le rapport pour le projet "${projectName}" a été exporté avec succès (simulation).`,
-    );
+  const generateProjectReport = async (project: Project) => {
+    try {
+      await refreshProject(project.id);
+      const latestProject =
+        useAppStore.getState().getProjectById(project.id) ?? project;
+      const projectIndicators = await fetchIndicatorsForProject(project.id);
+      await Promise.all(
+        projectIndicators.map((indicator) => fetchIndicatorEntries(indicator.id)),
+      );
+      const entriesForReport = useAppStore.getState().indicatorEntries;
+
+      generateProjectReportPdf({
+        project: latestProject,
+        indicators: projectIndicators,
+        entries: entriesForReport,
+      });
+      toast.success(`Rapport PDF pour "${project.name}" téléchargé.`);
+    } catch (error) {
+      console.error('Failed to generate donor project report', error);
+      toast.error("Impossible de générer le rapport PDF du projet.");
+    }
+  };
+
+  const handleViewDetails = async (projectId: string) => {
+    try {
+      await refreshProject(projectId);
+    } catch (error) {
+      console.error('Failed to refresh project before navigation', error);
+    }
+    navigate(`/donateur/projects/${projectId}`);
   };
 
   return (
@@ -149,12 +192,20 @@ export default function DonateurProjects() {
                       variant="outline"
                       className="flex-1 gap-1"
                       size="sm"
-                      onClick={() => navigate(`/donateur/projects/${project.id}`)}
+                      onClick={() => {
+                        void handleViewDetails(project.id);
+                      }}
                     >
                       <Eye className="w-4 h-4" />
                       Voir Détails
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handlePdfExport(project.name)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void generateProjectReport(project);
+                      }}
+                    >
                       <Download className="w-4 h-4" />
                     </Button>
                   </div>

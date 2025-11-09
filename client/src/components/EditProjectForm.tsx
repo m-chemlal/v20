@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useForm, Controller, Resolver } from 'react-hook-form';
+import { Controller, Resolver, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -14,13 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useAppStore, fetchChefsDeProjet, fetchDonateurs } from '@/store/appStore';
 import { Project, ProjectStatus } from '@/types/project';
+import { PROJECT_STATUSES } from './AddProjectForm';
+import { Checkbox } from '@/components/ui/checkbox';
+import { fetchChefsDeProjet, fetchDonateurs, useAppStore } from '@/store/appStore';
 
-export const PROJECT_STATUSES = ['planning', 'enCours', 'completed', 'paused'] as const;
-
-const formSchema = z.object({
+const editProjectSchema = z.object({
   name: z.string().min(5, {
     message: 'Le nom du projet doit contenir au moins 5 caractères.',
   }),
@@ -28,7 +27,7 @@ const formSchema = z.object({
     message: 'La description doit contenir au moins 20 caractères.',
   }),
   chefDeProjetId: z.string().min(1, {
-    message: 'Veuillez assigner un Chef de Projet.',
+    message: 'Veuillez sélectionner un Chef de Projet.',
   }),
   budget: z.coerce.number()
     .refine((value) => !Number.isNaN(value), {
@@ -38,30 +37,76 @@ const formSchema = z.object({
   status: z.enum(PROJECT_STATUSES, {
     message: 'Veuillez sélectionner un statut.',
   }),
+  startDate: z
+    .string()
+    .min(1, { message: 'La date de début est obligatoire.' })
+    .refine((value) => !Number.isNaN(Date.parse(value)), {
+      message: 'Date de début invalide.',
+    }),
+  endDate: z
+    .string()
+    .optional()
+    .refine((value) => {
+      if (!value) {
+        return true;
+      }
+      return !Number.isNaN(Date.parse(value));
+    }, { message: 'Date de fin invalide.' }),
   donatorIds: z.array(z.string()).default([]),
 });
 
-type AddProjectFormData = z.infer<typeof formSchema>;
+type EditProjectFormData = z.infer<typeof editProjectSchema>;
 
-type DonorOption = { id: string; name: string; email?: string };
+interface EditProjectFormProps {
+  project: Project;
+  onProjectUpdated?: (project: Project) => void;
+}
 
-export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: Project) => void }) {
+function formatDateInput(value: Date | string | null | undefined): string {
+  if (!value) {
+    return '';
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString().split('T')[0];
+  }
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+  }
+  return '';
+}
+
+export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormProps) {
+  const updateProject = useAppStore((state) => state.updateProject);
+  const [chefs, setChefs] = useState<Array<{ id: string; name: string }>>([]);
+  const [donors, setDonors] = useState<Array<{ id: string; name: string; email?: string }>>([]);
+
   const {
     control,
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<AddProjectFormData, any, AddProjectFormData>({
-    resolver: zodResolver(formSchema) as Resolver<AddProjectFormData, any, AddProjectFormData>,
+  } = useForm<EditProjectFormData, any, EditProjectFormData>({
+    resolver: zodResolver(editProjectSchema) as Resolver<
+      EditProjectFormData,
+      any,
+      EditProjectFormData
+    >,
     defaultValues: {
-      status: 'enCours',
-      donatorIds: [],
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      chefDeProjetId: project.chefProjectId,
+      budget: project.budget,
+      startDate: formatDateInput(project.startDate),
+      endDate: formatDateInput(project.endDate),
+      donatorIds: project.donatorIds ?? [],
     },
   });
-  const { createProject } = useAppStore();
-  const [chefs, setChefs] = useState<Array<{ id: string; name: string }>>([]);
-  const [donors, setDonors] = useState<DonorOption[]>([]);
 
   useEffect(() => {
     fetchChefsDeProjet().then(setChefs);
@@ -78,52 +123,73 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
     }));
   }, [donors]);
 
-  const onSubmit = async (data: AddProjectFormData) => {
-    const created = await createProject({
+  useEffect(() => {
+    reset({
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      chefDeProjetId: project.chefProjectId,
+      budget: project.budget,
+      startDate: formatDateInput(project.startDate),
+      endDate: formatDateInput(project.endDate),
+      donatorIds: project.donatorIds ?? [],
+    });
+  }, [project, reset]);
+
+  const onSubmit = async (data: EditProjectFormData) => {
+    const updated = await updateProject(project.id, {
       name: data.name,
       description: data.description,
       status: data.status as ProjectStatus,
-      startDate: new Date(),
-      endDate: null,
+      startDate: data.startDate,
+      endDate: data.endDate ? data.endDate : null,
       budget: data.budget,
-      spent: 0,
-      adminId: null,
+      spent: project.spent,
       chefProjectId: data.chefDeProjetId,
       donatorIds: data.donatorIds,
     });
 
-    if (created) {
-      reset({ status: 'enCours', donatorIds: [] });
-      onProjectAdded?.(created);
+    if (updated) {
+      onProjectUpdated?.(updated);
+      reset({
+        name: updated.name,
+        description: updated.description,
+        status: updated.status,
+        chefDeProjetId: updated.chefProjectId,
+        budget: updated.budget,
+        startDate: formatDateInput(updated.startDate),
+        endDate: formatDateInput(updated.endDate),
+        donatorIds: updated.donatorIds ?? [],
+      });
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Nom du Projet</Label>
-        <Input id="name" {...register('name')} />
+        <Label htmlFor="edit-project-name">Nom du Projet</Label>
+        <Input id="edit-project-name" {...register('name')} />
         {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea id="description" {...register('description')} rows={4} />
+        <Label htmlFor="edit-project-description">Description</Label>
+        <Textarea id="edit-project-description" rows={4} {...register('description')} />
         {errors.description && (
           <p className="text-red-500 text-xs">{errors.description.message}</p>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="chefDeProjetId">Chef de Projet</Label>
+          <Label htmlFor="edit-project-chef">Chef de Projet</Label>
           <Controller
             control={control}
             name="chefDeProjetId"
             render={({ field }) => (
               <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Assigner un Chef" />
+                <SelectTrigger id="edit-project-chef">
+                  <SelectValue placeholder="Sélectionner un Chef" />
                 </SelectTrigger>
                 <SelectContent>
                   {chefs.map((chef) => (
@@ -141,9 +207,9 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="budget">Budget (€)</Label>
+          <Label htmlFor="edit-project-budget">Budget (€)</Label>
           <Input
-            id="budget"
+            id="edit-project-budget"
             type="number"
             {...register('budget', { valueAsNumber: true })}
           />
@@ -153,14 +219,32 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-project-start">Date de Début</Label>
+          <Input id="edit-project-start" type="date" {...register('startDate')} />
+          {errors.startDate && (
+            <p className="text-red-500 text-xs">{errors.startDate.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-project-end">Date de Fin</Label>
+          <Input id="edit-project-end" type="date" {...register('endDate')} />
+          {errors.endDate && <p className="text-red-500 text-xs">{errors.endDate.message}</p>}
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <Label htmlFor="status">Statut</Label>
+        <Label htmlFor="edit-project-status">Statut</Label>
         <Controller
           control={control}
           name="status"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={(value) => field.onChange(value as ProjectStatus)}>
-              <SelectTrigger>
+            <Select
+              value={field.value}
+              onValueChange={(value) => field.onChange(value as ProjectStatus)}
+            >
+              <SelectTrigger id="edit-project-status">
                 <SelectValue placeholder="Sélectionner un statut" />
               </SelectTrigger>
               <SelectContent>
@@ -193,7 +277,7 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
                   return (
                     <div key={donor.id} className="flex items-center gap-2">
                       <Checkbox
-                        id={`donor-${donor.id}`}
+                        id={`edit-donor-${donor.id}`}
                         checked={checked}
                         onCheckedChange={(value) => {
                           const isChecked = value === true;
@@ -206,7 +290,7 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
                           }
                         }}
                       />
-                      <Label htmlFor={`donor-${donor.id}`} className="text-sm font-normal">
+                      <Label htmlFor={`edit-donor-${donor.id}`} className="text-sm font-normal">
                         {donor.label}
                       </Label>
                     </div>
@@ -222,10 +306,10 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
         {isSubmitting ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Création...
+            Mise à jour...
           </>
         ) : (
-          'Créer le Projet'
+          'Mettre à jour le Projet'
         )}
       </Button>
     </form>

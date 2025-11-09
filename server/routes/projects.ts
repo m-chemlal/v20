@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { QueryResult, QueryResultRow } from '../db';
-import { getPool, query } from '../db';
+import { getPool, query, withTransaction } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
@@ -133,6 +133,18 @@ const createProjectSchema = z.object({
   donatorIds: z.array(z.string()).optional().default([]),
 });
 
+const updateProjectSchema = z.object({
+  name: z.string().min(3).optional(),
+  description: z.string().min(10).optional(),
+  status: z.enum(['planning', 'enCours', 'completed', 'paused']).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().nullable().optional(),
+  budget: z.number().nonnegative().optional(),
+  spent: z.number().nonnegative().optional(),
+  chefProjectId: z.string().optional(),
+  donatorIds: z.array(z.string()).optional(),
+});
+
 router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
   const parsed = createProjectSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -174,5 +186,107 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
 
   return res.status(201).json(mapProject(projectRecord.rows[0], donorIds));
 });
+
+router.put(
+  '/:projectId',
+  requireAuth,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res) => {
+    const projectId = Number(req.params.projectId);
+    if (!Number.isFinite(projectId)) {
+      return res.status(400).json({ message: 'Invalid project id' });
+    }
+
+    const parsed = updateProjectSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: 'Invalid project payload' });
+    }
+
+    const existingResult = await query<ProjectRow>(`SELECT * FROM projects WHERE id = ?`, [projectId]);
+    if (existingResult.rowCount === 0) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    const existing = existingResult.rows[0];
+    const payload = parsed.data;
+
+    const nextValues = {
+      name: payload.name ?? existing.name,
+      description: payload.description ?? existing.description,
+      status: (payload.status ?? existing.status) as ProjectRow['status'],
+      startDate: payload.startDate ?? existing.start_date,
+      endDate: payload.endDate ?? existing.end_date,
+      budget: payload.budget ?? Number(existing.budget ?? 0),
+      spent: payload.spent ?? Number(existing.spent ?? 0),
+      chefProjectId: Number(payload.chefProjectId ?? existing.chef_project_id),
+      adminId: existing.admin_id ?? req.user!.id,
+      donatorIds: payload.donatorIds,
+    };
+
+    await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE projects
+           SET name = ?,
+               description = ?,
+               status = ?,
+               start_date = ?,
+               end_date = ?,
+               budget = ?,
+               spent = ?,
+               admin_id = ?,
+               chef_project_id = ?,
+               updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [
+          nextValues.name,
+          nextValues.description,
+          nextValues.status,
+          nextValues.startDate,
+          nextValues.endDate ?? null,
+          nextValues.budget,
+          nextValues.spent,
+          nextValues.adminId,
+          nextValues.chefProjectId,
+          projectId,
+        ],
+      );
+
+      if (Array.isArray(nextValues.donatorIds)) {
+        await client.query(`DELETE FROM project_donors WHERE project_id = ?`, [projectId]);
+        for (const donorId of nextValues.donatorIds) {
+          await client.query(
+            `INSERT OR IGNORE INTO project_donors (project_id, user_id) VALUES (?, ?)`,
+            [projectId, Number(donorId)],
+          );
+        }
+      }
+    });
+
+    const updatedRecord = await query<ProjectRow>(`SELECT * FROM projects WHERE id = ?`, [projectId]);
+    const donorIds = await fetchDonorsForProject(projectId);
+
+    return res.json(mapProject(updatedRecord.rows[0], donorIds));
+  },
+);
+
+router.delete(
+  '/:projectId',
+  requireAuth,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res) => {
+    const projectId = Number(req.params.projectId);
+    if (!Number.isFinite(projectId)) {
+      return res.status(400).json({ message: 'Invalid project id' });
+    }
+
+    const pool = await getPool();
+    const result = await pool.query(`DELETE FROM projects WHERE id = ?`, [projectId]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    return res.status(204).send();
+  },
+);
 
 export default router;

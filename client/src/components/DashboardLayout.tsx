@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
 import { useLocation } from 'wouter';
@@ -28,9 +28,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { fetchProjects, loadedProjects } = useAppStore();
   const [, navigate] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(
-    null
-  );
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -42,14 +40,14 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   // Auto-logout after 30 minutes of inactivity
   useEffect(() => {
     const handleActivity = () => {
-      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
 
-      const timer = setTimeout(() => {
+      inactivityTimerRef.current = setTimeout(() => {
         logout();
         navigate('/login');
       }, 30 * 60 * 1000); // 30 minutes
-
-      setInactivityTimer(timer);
     };
 
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
@@ -61,9 +59,12 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
       events.forEach((event) =>
         document.removeEventListener(event, handleActivity)
       );
-      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
     };
-  }, [inactivityTimer, logout, navigate]);
+  }, [logout, navigate]);
 
   const handleLogout = () => {
     if (confirm('Are you sure you want to log out?')) {
