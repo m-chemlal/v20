@@ -114,4 +114,7 @@ export const config = {
   smtpFromEmail:
     process.env.SMTP_FROM_EMAIL ?? process.env.SMTP_USER ?? 'noreply@impacttracker.local',
   smtpFromName: process.env.SMTP_FROM_NAME ?? 'ImpactTracker',
+  mailtrapApiToken: process.env.MAILTRAP_API_TOKEN ?? process.env.MAILTRAP_TOKEN,
+  mailtrapApiEndpoint:
+    process.env.MAILTRAP_API_ENDPOINT ?? 'https://send.api.mailtrap.io/api/send',
 };

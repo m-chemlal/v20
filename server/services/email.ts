@@ -15,16 +15,6 @@ type NodemailerTransporter = {
   }) => Promise<NodemailerSentMessageInfo>;
 };
 
-type NodemailerTestAccount = {
-  user: string;
-  pass: string;
-  smtp: {
-    host: string;
-    port: number;
-    secure: boolean;
-  };
-};
-
 type NodemailerModule = {
   createTransport: (options: {
     host: string;
@@ -32,8 +22,6 @@ type NodemailerModule = {
     secure: boolean;
     auth?: { user: string; pass: string };
   }) => NodemailerTransporter;
-  createTestAccount?: () => Promise<NodemailerTestAccount>;
-  getTestMessageUrl?: (info: NodemailerSentMessageInfo) => string | false;
 };
 
 interface NewUserEmailOptions {
@@ -46,7 +34,6 @@ interface NewUserEmailOptions {
 let transporter: NodemailerTransporter | null = null;
 let cachedNodemailer: NodemailerModule | null = null;
 let nodemailerLoadAttempted = false;
-let etherealAccount: NodemailerTestAccount | null = null;
 
 async function loadNodemailer(): Promise<NodemailerModule | null> {
   if (cachedNodemailer || nodemailerLoadAttempted) {
@@ -76,7 +63,9 @@ async function loadNodemailer(): Promise<NodemailerModule | null> {
   }
 }
 
-async function buildConfiguredTransport(nodemailer: NodemailerModule): Promise<NodemailerTransporter | null> {
+async function buildConfiguredTransport(
+  nodemailer: NodemailerModule,
+): Promise<NodemailerTransporter | null> {
   if (!config.smtpHost) {
     return null;
   }
@@ -97,37 +86,13 @@ async function buildConfiguredTransport(nodemailer: NodemailerModule): Promise<N
   return transporter;
 }
 
-async function buildEtherealTransport(nodemailer: NodemailerModule): Promise<NodemailerTransporter | null> {
-  if (!nodemailer.createTestAccount) {
-    console.info('[email] Nodemailer available but no test account helper exposed - emails disabled');
-    return null;
-  }
-
-  if (!etherealAccount) {
-    try {
-      etherealAccount = await nodemailer.createTestAccount();
-      console.info(
-        `[email] Using Ethereal test SMTP account ${etherealAccount.user}. Emails will be available via preview URLs.`,
-      );
-    } catch (error) {
-      console.error('[email] Failed to create Ethereal test account', error);
-      return null;
-    }
-  }
-
-  transporter = nodemailer.createTransport({
-    host: etherealAccount.smtp.host,
-    port: etherealAccount.smtp.port,
-    secure: etherealAccount.smtp.secure,
-    auth: { user: etherealAccount.user, pass: etherealAccount.pass },
-  });
-
-  return transporter;
-}
-
 async function getTransporter(): Promise<NodemailerTransporter | null> {
   if (transporter) {
     return transporter;
+  }
+
+  if (!config.smtpHost) {
+    return null;
   }
 
   const nodemailer = await loadNodemailer();
@@ -135,11 +100,62 @@ async function getTransporter(): Promise<NodemailerTransporter | null> {
     return null;
   }
 
-  if (config.smtpHost) {
-    return buildConfiguredTransport(nodemailer);
+  return buildConfiguredTransport(nodemailer);
+}
+
+async function sendViaMailtrapApi({
+  to,
+  fullName,
+  subject,
+  textBody,
+  htmlBody,
+}: {
+  to: string;
+  fullName: string;
+  subject: string;
+  textBody: string;
+  htmlBody: string;
+}): Promise<boolean> {
+  if (!config.mailtrapApiToken) {
+    return false;
   }
 
-  return buildEtherealTransport(nodemailer);
+  try {
+    const response = await fetch(config.mailtrapApiEndpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.mailtrapApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: {
+          email: config.smtpFromEmail,
+          name: config.smtpFromName,
+        },
+        to: [
+          {
+            email: to,
+            name: fullName || undefined,
+          },
+        ],
+        subject,
+        text: textBody,
+        html: htmlBody,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error('[email] Mailtrap API send failed', response.status, errorBody);
+      return false;
+    }
+
+    console.info('[email] Sent welcome email via Mailtrap');
+    return true;
+  } catch (error) {
+    console.error('[email] Failed to send welcome email via Mailtrap', error);
+    return false;
+  }
 }
 
 export async function sendNewUserPasswordEmail({
@@ -176,29 +192,32 @@ export async function sendNewUserPasswordEmail({
 
   const activeTransporter = await getTransporter();
 
-  if (!activeTransporter) {
-    console.info('[email] Email transport unavailable - skipping send');
-    console.info(`[email] Would send welcome email to ${to}`);
-    return;
+  if (activeTransporter) {
+    try {
+      await activeTransporter.sendMail({
+        from: mailFrom,
+        to,
+        subject,
+        text: textBody,
+        html: htmlBody,
+      });
+      return;
+    } catch (error) {
+      console.error('[email] Failed to send welcome email via SMTP transport', error);
+      throw error;
+    }
   }
 
-  try {
-    const info = await activeTransporter.sendMail({
-      from: mailFrom,
-      to,
-      subject,
-      text: textBody,
-      html: htmlBody,
-    });
+  const sentViaMailtrap = await sendViaMailtrapApi({
+    to,
+    fullName,
+    subject,
+    textBody,
+    htmlBody,
+  });
 
-    if (!config.smtpHost && cachedNodemailer?.getTestMessageUrl) {
-      const preview = cachedNodemailer.getTestMessageUrl(info);
-      if (preview) {
-        console.info(`[email] Preview welcome email at ${preview}`);
-      }
-    }
-  } catch (error) {
-    console.error('[email] Failed to send welcome email', error);
-    throw error;
+  if (!sentViaMailtrap) {
+    console.info('[email] Email transport unavailable - skipping send');
+    console.info(`[email] Would send welcome email to ${to}`);
   }
 }
