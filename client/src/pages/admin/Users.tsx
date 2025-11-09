@@ -15,25 +15,49 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AddUserForm } from '@/components/AddUserForm';
+import { EditUserForm } from '@/components/EditUserForm';
 import { usersAPI } from '@/services/api';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userPendingDeletion, setUserPendingDeletion] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const mapUser = useCallback(
-    (data: any): User => ({
-      id: data.id.toString(),
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      name: `${data.firstName} ${data.lastName}`.trim(),
-      role: data.role,
-      avatar: data.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email)}`,
-      createdAt: new Date(data.createdAt),
-    }),
+    (data: any): User => {
+      const firstName = data.firstName ?? data.prenom ?? '';
+      const lastName = data.lastName ?? data.nom ?? '';
+      const createdAtSource = data.createdAt ?? data.date_creation ?? Date.now();
+
+      return {
+        id: data.id.toString(),
+        email: data.email,
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`.trim(),
+        role: data.role,
+        avatar:
+          data.avatar ??
+          data.photo_profil ??
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email)}`,
+        createdAt: new Date(createdAtSource),
+      };
+    },
     [],
   );
 
@@ -62,8 +86,34 @@ export default function AdminUsers() {
     await loadUsers();
   };
 
-  const handleDelete = () => {
-    toast.info("La suppression d'utilisateurs sera disponible prochainement.");
+  const handleUserUpdated = (updated: User) => {
+    setUsers((previous) => previous.map((user) => (user.id === updated.id ? updated : user)));
+    setIsEditModalOpen(false);
+    setSelectedUser(null);
+  };
+
+  const openDeleteDialog = (user: User) => {
+    setUserPendingDeletion(user);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userPendingDeletion) return;
+
+    try {
+      setIsDeleting(true);
+      await usersAPI.delete(userPendingDeletion.id);
+      toast.success(`Utilisateur ${userPendingDeletion.name} supprimé.`);
+      setUsers((previous) => previous.filter((user) => user.id !== userPendingDeletion.id));
+    } catch (error: any) {
+      console.error('Failed to delete user', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de supprimer l'utilisateur pour le moment.",
+      );
+    } finally {
+      setIsDeleting(false);
+      setUserPendingDeletion(null);
+    }
   };
 
   const columns: ColumnDef<User>[] = [
@@ -127,7 +177,15 @@ export default function AdminUsers() {
       id: 'actions',
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="sm" className="gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1"
+            onClick={() => {
+              setSelectedUser(row.original);
+              setIsEditModalOpen(true);
+            }}
+          >
             <Edit2 className="w-4 h-4" />
             Modifier
           </Button>
@@ -135,7 +193,7 @@ export default function AdminUsers() {
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive gap-1"
-            onClick={() => handleDelete()}
+            onClick={() => openDeleteDialog(row.original)}
           >
             <Trash2 className="w-4 h-4" />
             Supprimer
@@ -190,6 +248,48 @@ export default function AdminUsers() {
           <AddUserForm onUserAdded={handleUserAdded} />
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+        setIsEditModalOpen(open);
+        if (!open) {
+          setSelectedUser(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifier l'utilisateur</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <EditUserForm
+              key={selectedUser.id}
+              user={selectedUser}
+              onUserUpdated={handleUserUpdated}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!userPendingDeletion} onOpenChange={(open) => {
+        if (!open) {
+          setUserPendingDeletion(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera définitivement {userPendingDeletion?.name}. Cette opération est
+              irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

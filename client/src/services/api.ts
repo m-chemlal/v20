@@ -106,6 +106,15 @@ export const usersAPI = {
     const response = await api.post('/users', userData);
     return response.data;
   },
+
+  update: async (id: string | number, userData: any) => {
+    const response = await api.put(`/users/${id}`, userData);
+    return response.data;
+  },
+
+  delete: async (id: string | number) => {
+    await api.delete(`/users/${id}`);
+  },
 };
 
 // Projects API
