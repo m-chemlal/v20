@@ -3,14 +3,18 @@ import { useComposition } from "@/hooks/useComposition";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
-function Input({
-  className,
-  type,
-  onKeyDown,
-  onCompositionStart,
-  onCompositionEnd,
-  ...props
-}: React.ComponentProps<"input">) {
+const Input = React.forwardRef<HTMLInputElement, React.ComponentPropsWithoutRef<"input">>(
+function Input(
+  {
+    className,
+    type,
+    onKeyDown,
+    onCompositionStart,
+    onCompositionEnd,
+    ...props
+  },
+  ref
+) {
   // Get dialog composition context if available (will be no-op if not inside Dialog)
   const dialogComposition = useDialogComposition();
 
@@ -51,6 +55,7 @@ function Input({
 
   return (
     <input
+      ref={ref}
       type={type}
       data-slot="input"
       className={cn(
@@ -65,6 +70,8 @@ function Input({
       {...props}
     />
   );
-}
+});
+
+Input.displayName = "Input";
 
 export { Input };
