@@ -431,3 +431,17 @@ export async function fetchChefsDeProjet() {
     return [];
   }
 }
+
+export async function fetchDonateurs() {
+  try {
+    const users = await usersAPI.getAll('donateur');
+    return users.map((user: any) => ({
+      id: user.id.toString(),
+      name: `${user.firstName} ${user.lastName}`.trim() || user.email || `Donateur #${user.id}`,
+      email: user.email as string | undefined,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch donors', error);
+    return [] as Array<{ id: string; name: string; email?: string }>;
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, Resolver, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +16,8 @@ import {
 import { Loader2 } from 'lucide-react';
 import { Project, ProjectStatus } from '@/types/project';
 import { PROJECT_STATUSES } from './AddProjectForm';
-import { fetchChefsDeProjet, useAppStore } from '@/store/appStore';
+import { Checkbox } from '@/components/ui/checkbox';
+import { fetchChefsDeProjet, fetchDonateurs, useAppStore } from '@/store/appStore';
 
 const editProjectSchema = z.object({
   name: z.string().min(5, {
@@ -51,6 +52,7 @@ const editProjectSchema = z.object({
       }
       return !Number.isNaN(Date.parse(value));
     }, { message: 'Date de fin invalide.' }),
+  donatorIds: z.array(z.string()).default([]),
 });
 
 type EditProjectFormData = z.infer<typeof editProjectSchema>;
@@ -80,6 +82,7 @@ function formatDateInput(value: Date | string | null | undefined): string {
 export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormProps) {
   const updateProject = useAppStore((state) => state.updateProject);
   const [chefs, setChefs] = useState<Array<{ id: string; name: string }>>([]);
+  const [donors, setDonors] = useState<Array<{ id: string; name: string; email?: string }>>([]);
 
   const {
     control,
@@ -101,12 +104,24 @@ export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormPr
       budget: project.budget,
       startDate: formatDateInput(project.startDate),
       endDate: formatDateInput(project.endDate),
+      donatorIds: project.donatorIds ?? [],
     },
   });
 
   useEffect(() => {
     fetchChefsDeProjet().then(setChefs);
   }, []);
+
+  useEffect(() => {
+    fetchDonateurs().then(setDonors);
+  }, []);
+
+  const donorOptions = useMemo(() => {
+    return donors.map((donor) => ({
+      ...donor,
+      label: donor.email ? `${donor.name} (${donor.email})` : donor.name,
+    }));
+  }, [donors]);
 
   useEffect(() => {
     reset({
@@ -117,6 +132,7 @@ export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormPr
       budget: project.budget,
       startDate: formatDateInput(project.startDate),
       endDate: formatDateInput(project.endDate),
+      donatorIds: project.donatorIds ?? [],
     });
   }, [project, reset]);
 
@@ -130,7 +146,7 @@ export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormPr
       budget: data.budget,
       spent: project.spent,
       chefProjectId: data.chefDeProjetId,
-      donatorIds: project.donatorIds,
+      donatorIds: data.donatorIds,
     });
 
     if (updated) {
@@ -143,6 +159,7 @@ export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormPr
         budget: updated.budget,
         startDate: formatDateInput(updated.startDate),
         endDate: formatDateInput(updated.endDate),
+        donatorIds: updated.donatorIds ?? [],
       });
     }
   };
@@ -242,6 +259,48 @@ export function EditProjectForm({ project, onProjectUpdated }: EditProjectFormPr
         />
         {errors.status && <p className="text-red-500 text-xs">{errors.status.message}</p>}
       </div>
+
+      <Controller
+        control={control}
+        name="donatorIds"
+        render={({ field }) => (
+          <div className="space-y-2">
+            <Label>Donateurs</Label>
+            <div className="rounded-md border p-3 space-y-2 max-h-56 overflow-y-auto">
+              {donorOptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Aucun donateur disponible pour le moment.
+                </p>
+              ) : (
+                donorOptions.map((donor) => {
+                  const checked = field.value?.includes(donor.id) ?? false;
+                  return (
+                    <div key={donor.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`edit-donor-${donor.id}`}
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                          const isChecked = value === true;
+                          const current = field.value ?? [];
+                          if (isChecked && !current.includes(donor.id)) {
+                            field.onChange([...current, donor.id]);
+                          }
+                          if (!isChecked && current.includes(donor.id)) {
+                            field.onChange(current.filter((id) => id !== donor.id));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`edit-donor-${donor.id}`} className="text-sm font-normal">
+                        {donor.label}
+                      </Label>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      />
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, Controller, Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { useAppStore, fetchChefsDeProjet } from '@/store/appStore';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useAppStore, fetchChefsDeProjet, fetchDonateurs } from '@/store/appStore';
 import { Project, ProjectStatus } from '@/types/project';
 
 export const PROJECT_STATUSES = ['planning', 'enCours', 'completed', 'paused'] as const;
@@ -37,9 +38,12 @@ const formSchema = z.object({
   status: z.enum(PROJECT_STATUSES, {
     message: 'Veuillez sélectionner un statut.',
   }),
+  donatorIds: z.array(z.string()).default([]),
 });
 
 type AddProjectFormData = z.infer<typeof formSchema>;
+
+type DonorOption = { id: string; name: string; email?: string };
 
 export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: Project) => void }) {
   const {
@@ -52,14 +56,27 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
     resolver: zodResolver(formSchema) as Resolver<AddProjectFormData, any, AddProjectFormData>,
     defaultValues: {
       status: 'enCours',
+      donatorIds: [],
     },
   });
   const { createProject } = useAppStore();
   const [chefs, setChefs] = useState<Array<{ id: string; name: string }>>([]);
+  const [donors, setDonors] = useState<DonorOption[]>([]);
 
   useEffect(() => {
     fetchChefsDeProjet().then(setChefs);
   }, []);
+
+  useEffect(() => {
+    fetchDonateurs().then(setDonors);
+  }, []);
+
+  const donorOptions = useMemo(() => {
+    return donors.map((donor) => ({
+      ...donor,
+      label: donor.email ? `${donor.name} (${donor.email})` : donor.name,
+    }));
+  }, [donors]);
 
   const onSubmit = async (data: AddProjectFormData) => {
     const created = await createProject({
@@ -72,11 +89,11 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
       spent: 0,
       adminId: null,
       chefProjectId: data.chefDeProjetId,
-      donatorIds: [],
+      donatorIds: data.donatorIds,
     });
 
     if (created) {
-      reset({ status: 'enCours' });
+      reset({ status: 'enCours', donatorIds: [] });
       onProjectAdded?.(created);
     }
   };
@@ -158,6 +175,48 @@ export function AddProjectForm({ onProjectAdded }: { onProjectAdded?: (project: 
         />
         {errors.status && <p className="text-red-500 text-xs">{errors.status.message}</p>}
       </div>
+
+      <Controller
+        control={control}
+        name="donatorIds"
+        render={({ field }) => (
+          <div className="space-y-2">
+            <Label>Donateurs</Label>
+            <div className="rounded-md border p-3 space-y-2 max-h-56 overflow-y-auto">
+              {donorOptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Aucun donateur disponible pour le moment.
+                </p>
+              ) : (
+                donorOptions.map((donor) => {
+                  const checked = field.value?.includes(donor.id) ?? false;
+                  return (
+                    <div key={donor.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`donor-${donor.id}`}
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                          const isChecked = value === true;
+                          const current = field.value ?? [];
+                          if (isChecked && !current.includes(donor.id)) {
+                            field.onChange([...current, donor.id]);
+                          }
+                          if (!isChecked && current.includes(donor.id)) {
+                            field.onChange(current.filter((id) => id !== donor.id));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`donor-${donor.id}`} className="text-sm font-normal">
+                        {donor.label}
+                      </Label>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      />
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (
