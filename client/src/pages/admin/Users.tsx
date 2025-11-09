@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Edit2, Trash2, ArrowUpDown } from 'lucide-react';
-import { mockUsers } from '@/data/mockData';
 import { User } from '@/types/auth';
 import { format } from 'date-fns';
 import { DataTable } from '@/components/DataTable';
@@ -16,22 +15,55 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AddUserForm } from '@/components/AddUserForm';
+import { usersAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUserAdded = () => {
-    // In a real app, we would fetch the new list of users.
-    // Here, we just close the modal and show a success message (handled in AddUserForm).
+  const mapUser = useCallback(
+    (data: any): User => ({
+      id: data.id.toString(),
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      name: `${data.firstName} ${data.lastName}`.trim(),
+      role: data.role,
+      avatar: data.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email)}`,
+      createdAt: new Date(data.createdAt),
+    }),
+    [],
+  );
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await usersAPI.getAll();
+      setUsers(response.map(mapUser));
+    } catch (error: any) {
+      console.error('Failed to load users', error);
+      toast.error(
+        error?.response?.data?.message ??
+          "Impossible de charger la liste des utilisateurs.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mapUser]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleUserAdded = async () => {
     setIsModalOpen(false);
+    await loadUsers();
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
-      setUsers(users.filter((u) => u.id !== id));
-      // In a real app, an API call would be made here.
-    }
+  const handleDelete = () => {
+    toast.info("La suppression d'utilisateurs sera disponible prochainement.");
   };
 
   const columns: ColumnDef<User>[] = [
@@ -103,7 +135,7 @@ export default function AdminUsers() {
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive gap-1"
-            onClick={() => handleDelete(row.original.id)}
+            onClick={() => handleDelete()}
           >
             <Trash2 className="w-4 h-4" />
             Supprimer
@@ -125,6 +157,7 @@ export default function AdminUsers() {
           <DataTable
             columns={columns}
             data={users}
+            isLoading={isLoading}
             filterColumnId="name"
             filterPlaceholder="Rechercher par nom..."
             onAddNew={() => setIsModalOpen(true)}

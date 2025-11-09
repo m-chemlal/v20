@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { useAppStore } from '@/store/appStore';
 import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -24,12 +25,19 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, logout } = useAuthStore();
+  const { fetchProjects, loadedProjects } = useAppStore();
   const [, navigate] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(
     null
   );
   const { theme } = useTheme();
+
+  useEffect(() => {
+    if (user && !loadedProjects) {
+      fetchProjects();
+    }
+  }, [user, loadedProjects, fetchProjects]);
 
   // Auto-logout after 30 minutes of inactivity
   useEffect(() => {

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Indicator, IndicatorEntry } from '@/types/project';
+import { Indicator } from '@/types/project';
 import { useAppStore } from '@/store/appStore';
 import { useAuthStore } from '@/store/authStore';
 import { Loader2, Upload, CheckCircle } from 'lucide-react';
@@ -27,7 +27,7 @@ export function IndicatorEntryFormModal({
   onClose,
   indicator,
 }: IndicatorEntryFormModalProps) {
-  const { addIndicatorEntry } = useAppStore();
+  const { updateIndicatorValue } = useAppStore();
   const { user } = useAuthStore();
   const [value, setValue] = useState(indicator.currentValue);
   const [notes, setNotes] = useState('');
@@ -72,21 +72,11 @@ export function IndicatorEntryFormModal({
       evidenceUrl = `https://mock-evidence-storage.com/${file.name}-${Date.now()}`;
     }
 
-    // Create new entry
-    const newEntry: Omit<IndicatorEntry, 'id'> = {
-      indicatorId: indicator.id,
-      value: value,
+    await updateIndicatorValue(indicator.id, {
+      value,
       notes: notes || undefined,
       evidence: evidenceUrl || undefined,
-      createdAt: new Date(),
-      createdBy: user.id,
-    };
-
-    addIndicatorEntry(newEntry);
-
-    toast.success(
-      `Indicator "${indicator.name}" updated to ${value} ${indicator.unit}.`
-    );
+    });
 
     setIsLoading(false);
     onClose();
