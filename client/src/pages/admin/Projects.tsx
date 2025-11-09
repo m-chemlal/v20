@@ -91,6 +91,25 @@ export default function AdminProjects() {
     return format(dateValue, 'dd MMM yyyy', { locale: fr });
   };
 
+  const safeNumber = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+  const formatCurrency = (value: number | null | undefined) =>
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+      safeNumber(value),
+    );
+
+  const formatDateValue = (value: Date | string | null | undefined) => {
+    if (!value) {
+      return '—';
+    }
+    const dateValue = value instanceof Date ? value : new Date(value);
+    if (!isValid(dateValue)) {
+      return '—';
+    }
+    return format(dateValue, 'dd MMM yyyy', { locale: fr });
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       enCours: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200',
