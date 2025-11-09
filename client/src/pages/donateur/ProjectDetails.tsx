@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'sonner';
+import { generateProjectReportPdf } from '@/utils/projectReports';
 
 interface IndicatorChartProps {
   indicator: Indicator;
@@ -53,6 +54,8 @@ export default function DonateurProjectDetails() {
   const [match, params] = useRoute('/donateur/projects/:id');
   const [, navigate] = useLocation();
   const fetchIndicatorEntries = useAppStore((state) => state.fetchIndicatorEntries);
+  const fetchIndicatorsForProject = useAppStore((state) => state.fetchIndicatorsForProject);
+  const refreshProject = useAppStore((state) => state.refreshProject);
   const indicatorEntries = useAppStore((state) => state.indicatorEntries);
   const project = useAppStore((state) =>
     params?.id ? state.getProjectById(params.id) : undefined,
@@ -78,8 +81,23 @@ export default function DonateurProjectDetails() {
   }
 
   useEffect(() => {
+    if (params?.id && !project) {
+      void refreshProject(params.id);
+    }
+  }, [params?.id, project, refreshProject]);
+
+  useEffect(() => {
+    if (params?.id) {
+      void fetchIndicatorsForProject(params.id);
+    }
+  }, [params?.id, fetchIndicatorsForProject]);
+
+  useEffect(() => {
+    if (indicators.length === 0) {
+      return;
+    }
     indicators.forEach((indicator) => {
-      fetchIndicatorEntries(indicator.id);
+      void fetchIndicatorEntries(indicator.id);
     });
   }, [indicators, fetchIndicatorEntries]);
 
@@ -104,12 +122,35 @@ export default function DonateurProjectDetails() {
       )
     : 0;
 
-  const handlePdfExport = () => {
-    toast.info('Simulation d\'Export PDF: Génération du rapport...');
-    // Simulate PDF generation delay
-    setTimeout(() => {
-      toast.success('Rapport PDF pour le projet téléchargé avec succès !');
-    }, 1500);
+  const handlePdfExport = async () => {
+    if (!params?.id || !project) {
+      toast.error('Projet introuvable pour la génération du rapport.');
+      return;
+    }
+
+    try {
+      await refreshProject(params.id);
+      const latestProject = useAppStore.getState().getProjectById(params.id);
+      const latestIndicators = await fetchIndicatorsForProject(params.id);
+      await Promise.all(
+        latestIndicators.map((indicator) => fetchIndicatorEntries(indicator.id)),
+      );
+      const entriesForReport = useAppStore.getState().indicatorEntries;
+
+      if (!latestProject) {
+        throw new Error('Project not found after refresh');
+      }
+
+      generateProjectReportPdf({
+        project: latestProject,
+        indicators: latestIndicators,
+        entries: entriesForReport,
+      });
+      toast.success('Rapport PDF téléchargé avec succès.');
+    } catch (error) {
+      console.error('Failed to generate donor project PDF', error);
+      toast.error("Impossible de générer le rapport PDF du projet.");
+    }
   };
 
   return (
@@ -129,10 +170,10 @@ export default function DonateurProjectDetails() {
             <ArrowLeft className="w-4 h-4" />
             Retour aux Projets
           </Button>
-          <Button onClick={handlePdfExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Exporter Rapport PDF (Simulation)
-          </Button>
+            <Button onClick={handlePdfExport} className="gap-2">
+              <Download className="w-4 h-4" />
+              Exporter le rapport PDF
+            </Button>
         </div>
 
         {/* Project Info */}
