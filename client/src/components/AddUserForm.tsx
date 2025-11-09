@@ -80,6 +80,7 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         nom: data.lastName,
         role: data.role,
         password: randomPassword,
+        actif: true,
       });
       toast.success(`Utilisateur ${data.firstName} ${data.lastName} créé.`);
       reset({
