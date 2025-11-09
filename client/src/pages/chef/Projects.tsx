@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,10 +11,18 @@ import { format } from 'date-fns';
 
 export default function ChefProjects() {
   const { user } = useAuthStore();
-  const { projects, indicators } = useAppStore();
+  const { projects, indicators, fetchIndicatorsForProject } = useAppStore();
   const [, navigate] = useLocation();
 
   const myProjects = projects.filter((p) => p.chefProjectId === user?.id);
+
+  useEffect(() => {
+    myProjects.forEach((project) => {
+      if (!indicators.some((indicator) => indicator.projectId === project.id)) {
+        fetchIndicatorsForProject(project.id);
+      }
+    });
+  }, [myProjects, indicators, fetchIndicatorsForProject]);
 
   return (
     <DashboardLayout title="My Projects">
@@ -58,7 +67,12 @@ export default function ChefProjects() {
                         <DollarSign className="w-4 h-4" />
                         Budget
                       </span>
-                      <span className="font-semibold">${project.budget}</span>
+                      <span className="font-semibold">
+                        {project.budget.toLocaleString('fr-FR', {
+                          style: 'currency',
+                          currency: 'EUR',
+                        })}
+                      </span>
                     </div>
 
                     <div className="flex items-center justify-between text-sm">
@@ -76,12 +90,17 @@ export default function ChefProjects() {
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
                     <Calendar className="w-3 h-3" />
-                    {format(project.startDate, 'MMM dd')} - {format(project.endDate, 'MMM dd')}
+                    {format(project.startDate, 'MMM dd')}{' '}-{' '}
+                    {project.endDate ? format(project.endDate, 'MMM dd') : 'À définir'}
                   </div>
 
-	                  <Button variant="outline" className="w-full mt-auto" onClick={() => navigate(`/chef/projects/${project.id}`)}>
-	                    View Details
-	                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-auto"
+                    onClick={() => navigate(`/chef/projects/${project.id}`)}
+                  >
+                    View Details
+                  </Button>
                 </Card>
               </motion.div>
             );

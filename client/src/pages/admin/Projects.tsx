@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Edit2, Trash2, ArrowUpDown, DollarSign, Briefcase } from 'lucide-react';
-import { mockProjects } from '@/data/mockData';
 import { format } from 'date-fns';
 import { DataTable } from '@/components/DataTable';
 import { ColumnDef } from '@tanstack/react-table';
@@ -16,22 +15,36 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AddProjectForm } from '@/components/AddProjectForm';
+import { useAppStore } from '@/store/appStore';
+import { toast } from 'sonner';
 
 export default function AdminProjects() {
-  const [projects, setProjects] = useState(mockProjects);
+  const {
+    projects,
+    isLoading,
+    fetchProjects,
+    loadedProjects,
+  } = useAppStore((state) => ({
+    projects: state.projects,
+    isLoading: state.isLoading,
+    fetchProjects: state.fetchProjects,
+    loadedProjects: state.loadedProjects,
+  }));
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleProjectAdded = () => {
-    // In a real app, we would fetch the new list of projects.
-    // Here, we just close the modal and show a success message (handled in AddProjectForm).
+  useEffect(() => {
+    if (!loadedProjects) {
+      fetchProjects();
+    }
+  }, [loadedProjects, fetchProjects]);
+
+  const handleProjectAdded = async () => {
     setIsModalOpen(false);
+    await fetchProjects();
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      setProjects(projects.filter((p) => p.id !== id));
-      // In a real app, an API call would be made here.
-    }
+  const handleDelete = () => {
+    toast.info('La suppression de projet sera disponible prochainement.');
   };
 
   const getStatusColor = (status: string) => {
@@ -90,7 +103,10 @@ export default function AdminProjects() {
       cell: ({ row }) => (
         <div className="text-sm font-medium flex items-center gap-1">
           <DollarSign className="w-4 h-4" />
-          {row.original.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+          {row.original.budget.toLocaleString('fr-FR', {
+            style: 'currency',
+            currency: 'EUR',
+          })}
         </div>
       ),
     },
@@ -99,7 +115,10 @@ export default function AdminProjects() {
       header: 'Dépensé',
       cell: ({ row }) => (
         <div className="text-sm text-muted-foreground">
-          {row.original.spent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+          {row.original.spent.toLocaleString('fr-FR', {
+            style: 'currency',
+            currency: 'EUR',
+          })}
         </div>
       ),
     },
@@ -124,7 +143,7 @@ export default function AdminProjects() {
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive gap-1"
-            onClick={() => handleDelete(row.original.id)}
+            onClick={() => handleDelete()}
           >
             <Trash2 className="w-4 h-4" />
             Supprimer
@@ -146,6 +165,7 @@ export default function AdminProjects() {
           <DataTable
             columns={columns}
             data={projects}
+            isLoading={isLoading}
             filterColumnId="name"
             filterPlaceholder="Rechercher par nom de projet..."
             onAddNew={() => setIsModalOpen(true)}
@@ -168,13 +188,23 @@ export default function AdminProjects() {
           <Card className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Budget Total</p>
             <p className="text-2xl font-bold">
-              {projects.reduce((sum, p) => sum + p.budget, 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+              {projects
+                .reduce((sum, p) => sum + p.budget, 0)
+                .toLocaleString('fr-FR', {
+                  style: 'currency',
+                  currency: 'EUR',
+                })}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Dépensé Total</p>
             <p className="text-2xl font-bold text-purple-600">
-              {projects.reduce((sum, p) => sum + p.spent, 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+              {projects
+                .reduce((sum, p) => sum + p.spent, 0)
+                .toLocaleString('fr-FR', {
+                  style: 'currency',
+                  currency: 'EUR',
+                })}
             </p>
           </Card>
         </div>

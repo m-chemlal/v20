@@ -29,6 +29,7 @@ interface DataTableProps<TData, TValue> {
   filterPlaceholder: string;
   onAddNew?: () => void;
   addNewLabel?: string;
+  isLoading?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -38,6 +39,7 @@ export function DataTable<TData, TValue>({
   filterPlaceholder,
   onAddNew,
   addNewLabel = "Add New",
+  isLoading = false,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -105,7 +107,13 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Chargement...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}

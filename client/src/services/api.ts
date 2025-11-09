@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -93,38 +93,12 @@ export const authAPI = {
     const response = await api.get('/auth/me');
     return response.data;
   },
-
-  changePassword: async (currentPassword: string, newPassword: string) => {
-    const response = await api.post('/auth/change-password', {
-      current_password: currentPassword,
-      new_password: newPassword,
-    });
-    return response.data;
-  },
-
-  forgotPassword: async (email: string) => {
-    const response = await api.post('/auth/forgot-password', { email });
-    return response.data;
-  },
-
-  resetPassword: async (token: string, newPassword: string) => {
-    const response = await api.post('/auth/reset-password', {
-      token,
-      new_password: newPassword,
-    });
-    return response.data;
-  },
 };
 
 // Users API
 export const usersAPI = {
-  getAll: async () => {
-    const response = await api.get('/users');
-    return response.data;
-  },
-
-  getById: async (id: number) => {
-    const response = await api.get(`/users/${id}`);
+  getAll: async (role?: string) => {
+    const response = await api.get('/users', { params: role ? { role } : undefined });
     return response.data;
   },
 
@@ -132,25 +106,16 @@ export const usersAPI = {
     const response = await api.post('/users', userData);
     return response.data;
   },
-
-  update: async (id: number, userData: any) => {
-    const response = await api.put(`/users/${id}`, userData);
-    return response.data;
-  },
-
-  delete: async (id: number) => {
-    await api.delete(`/users/${id}`);
-  },
 };
 
 // Projects API
 export const projectsAPI = {
-  getAll: async (params?: { skip?: number; limit?: number }) => {
-    const response = await api.get('/projects', { params });
+  getAll: async () => {
+    const response = await api.get('/projects');
     return response.data;
   },
 
-  getById: async (id: number) => {
+  getById: async (id: string) => {
     const response = await api.get(`/projects/${id}`);
     return response.data;
   },
@@ -159,26 +124,12 @@ export const projectsAPI = {
     const response = await api.post('/projects', projectData);
     return response.data;
   },
-
-  update: async (id: number, projectData: any) => {
-    const response = await api.put(`/projects/${id}`, projectData);
-    return response.data;
-  },
-
-  delete: async (id: number) => {
-    await api.delete(`/projects/${id}`);
-  },
 };
 
 // Indicators API
 export const indicatorsAPI = {
-  getAll: async (params?: { skip?: number; limit?: number; projet_id?: number }) => {
-    const response = await api.get('/indicators', { params });
-    return response.data;
-  },
-
-  getById: async (id: number) => {
-    const response = await api.get(`/indicators/${id}`);
+  getByProject: async (projectId: string) => {
+    const response = await api.get(`/indicators/project/${projectId}`);
     return response.data;
   },
 
@@ -187,13 +138,14 @@ export const indicatorsAPI = {
     return response.data;
   },
 
-  update: async (id: number, indicatorData: any) => {
+  update: async (id: string, indicatorData: any) => {
     const response = await api.put(`/indicators/${id}`, indicatorData);
     return response.data;
   },
 
-  delete: async (id: number) => {
-    await api.delete(`/indicators/${id}`);
+  getEntries: async (indicatorId: string) => {
+    const response = await api.get(`/indicators/${indicatorId}/entries`);
+    return response.data;
   },
 };
 
