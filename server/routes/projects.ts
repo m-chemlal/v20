@@ -237,6 +237,18 @@ const updateProjectSchema = z.object({
   donorAllocations: z.array(donorAllocationSchema).optional(),
 });
 
+const updateProjectSchema = z.object({
+  name: z.string().min(3).optional(),
+  description: z.string().min(10).optional(),
+  status: z.enum(['planning', 'enCours', 'completed', 'paused']).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().nullable().optional(),
+  budget: z.number().nonnegative().optional(),
+  spent: z.number().nonnegative().optional(),
+  chefProjectId: z.string().optional(),
+  donatorIds: z.array(z.string()).optional(),
+});
+
 router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
   const parsed = createProjectSchema.safeParse(req.body);
   if (!parsed.success) {

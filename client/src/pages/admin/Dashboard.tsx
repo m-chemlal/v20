@@ -28,6 +28,11 @@ import {
   Cell,
 } from 'recharts';
 
+interface UserMetrics {
+  total: number;
+  newInLast30Days: number;
+}
+
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
   const projects = useAppStore((state) => state.projects);
