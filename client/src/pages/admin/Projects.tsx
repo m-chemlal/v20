@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Edit2, Trash2, ArrowUpDown, DollarSign, Briefcase } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { DataTable } from '@/components/DataTable';
 import { ColumnDef } from '@tanstack/react-table';
 import { Project } from '@/types/project';
@@ -15,22 +16,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AddProjectForm } from '@/components/AddProjectForm';
+import { EditProjectForm } from '@/components/EditProjectForm';
 import { useAppStore } from '@/store/appStore';
-import { toast } from 'sonner';
 
 export default function AdminProjects() {
-  const {
-    projects,
-    isLoading,
-    fetchProjects,
-    loadedProjects,
-  } = useAppStore((state) => ({
-    projects: state.projects,
-    isLoading: state.isLoading,
-    fetchProjects: state.fetchProjects,
-    loadedProjects: state.loadedProjects,
-  }));
+  const projects = useAppStore((state) => state.projects);
+  const isLoading = useAppStore((state) => state.isLoading);
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const deleteProject = useAppStore((state) => state.deleteProject);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!loadedProjects) {
@@ -38,13 +35,60 @@ export default function AdminProjects() {
     }
   }, [loadedProjects, fetchProjects]);
 
-  const handleProjectAdded = async () => {
-    setIsModalOpen(false);
-    await fetchProjects();
+  const openAddModal = () => {
+    setModalMode('add');
+    setSelectedProject(null);
+    setIsModalOpen(true);
   };
 
-  const handleDelete = () => {
-    toast.info('La suppression de projet sera disponible prochainement.');
+  const openEditModal = (project: Project) => {
+    setModalMode('edit');
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  const handleProjectAdded = async () => {
+    setIsModalOpen(false);
+    await fetchProjects({ force: true });
+  };
+
+  const handleProjectUpdated = async () => {
+    setIsModalOpen(false);
+    await fetchProjects({ force: true });
+  };
+
+  const handleDelete = async (project: Project) => {
+    const confirmed = window.confirm(
+      `Voulez-vous vraiment supprimer le projet "${project.name}" ? Cette action est irréversible.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const success = await deleteProject(project.id);
+    if (success) {
+      await fetchProjects({ force: true });
+    }
+  };
+
+  const normalizeNumber = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+  const formatCurrency = (value: number | null | undefined) =>
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+      normalizeNumber(value),
+    );
+
+  const formatDateValue = (value: Date | string | null | undefined) => {
+    if (!value) {
+      return '—';
+    }
+    const dateValue = value instanceof Date ? value : new Date(value);
+    if (!isValid(dateValue)) {
+      return '—';
+    }
+    return format(dateValue, 'dd MMM yyyy', { locale: fr });
   };
 
   const getStatusColor = (status: string) => {
@@ -103,10 +147,7 @@ export default function AdminProjects() {
       cell: ({ row }) => (
         <div className="text-sm font-medium flex items-center gap-1">
           <DollarSign className="w-4 h-4" />
-          {row.original.budget.toLocaleString('fr-FR', {
-            style: 'currency',
-            currency: 'EUR',
-          })}
+          {formatCurrency(row.original.budget)}
         </div>
       ),
     },
@@ -114,28 +155,45 @@ export default function AdminProjects() {
       accessorKey: 'spent',
       header: 'Dépensé',
       cell: ({ row }) => (
-        <div className="text-sm text-muted-foreground">
-          {row.original.spent.toLocaleString('fr-FR', {
-            style: 'currency',
-            currency: 'EUR',
-          })}
-        </div>
+        <div className="text-sm text-muted-foreground">{formatCurrency(row.original.spent)}</div>
       ),
+    },
+    {
+      accessorKey: 'donorAllocations',
+      header: 'Financement',
+      cell: ({ row }) => {
+        const donorAllocations = row.original.donorAllocations ?? [];
+        if (donorAllocations.length === 0) {
+          return <span className="text-xs text-muted-foreground">Aucun donateur</span>;
+        }
+        const totalCommitted = donorAllocations.reduce((sum, donor) => sum + donor.committedAmount, 0);
+        return (
+          <div className="flex flex-col text-sm">
+            <span className="font-medium">{donorAllocations.length} donateur{donorAllocations.length > 1 ? 's' : ''}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatCurrency(totalCommitted)} engagés
+            </span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'startDate',
       header: 'Date de Début',
       cell: ({ row }) => (
-        <div className="text-sm text-muted-foreground">
-          {format(row.original.startDate, 'MMM dd, yyyy')}
-        </div>
+        <div className="text-sm text-muted-foreground">{formatDateValue(row.original.startDate)}</div>
       ),
     },
     {
       id: 'actions',
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="sm" className="gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1"
+            onClick={() => openEditModal(row.original)}
+          >
             <Edit2 className="w-4 h-4" />
             Modifier
           </Button>
@@ -143,7 +201,7 @@ export default function AdminProjects() {
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive gap-1"
-            onClick={() => handleDelete()}
+            onClick={() => handleDelete(row.original)}
           >
             <Trash2 className="w-4 h-4" />
             Supprimer
@@ -168,7 +226,7 @@ export default function AdminProjects() {
             isLoading={isLoading}
             filterColumnId="name"
             filterPlaceholder="Rechercher par nom de projet..."
-            onAddNew={() => setIsModalOpen(true)}
+            onAddNew={openAddModal}
             addNewLabel="Ajouter Projet"
           />
         </Card>
@@ -188,34 +246,42 @@ export default function AdminProjects() {
           <Card className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Budget Total</p>
             <p className="text-2xl font-bold">
-              {projects
-                .reduce((sum, p) => sum + p.budget, 0)
-                .toLocaleString('fr-FR', {
-                  style: 'currency',
-                  currency: 'EUR',
-                })}
+              {formatCurrency(
+                projects.reduce((sum, p) => sum + normalizeNumber(p.budget), 0),
+              )}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Dépensé Total</p>
             <p className="text-2xl font-bold text-purple-600">
-              {projects
-                .reduce((sum, p) => sum + p.spent, 0)
-                .toLocaleString('fr-FR', {
-                  style: 'currency',
-                  currency: 'EUR',
-                })}
+              {formatCurrency(
+                projects.reduce((sum, p) => sum + normalizeNumber(p.spent), 0),
+              )}
             </p>
           </Card>
         </div>
       </motion.div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            setSelectedProject(null);
+            setModalMode('add');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Créer un nouveau projet</DialogTitle>
+            <DialogTitle>
+              {modalMode === 'add' ? 'Créer un nouveau projet' : 'Modifier le projet'}
+            </DialogTitle>
           </DialogHeader>
-          <AddProjectForm onProjectAdded={handleProjectAdded} />
+          {modalMode === 'add' && <AddProjectForm onProjectAdded={handleProjectAdded} />}
+          {modalMode === 'edit' && selectedProject && (
+            <EditProjectForm project={selectedProject} onProjectUpdated={handleProjectUpdated} />
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
