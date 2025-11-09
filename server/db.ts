@@ -263,12 +263,15 @@ async function seedDatabase(db: SqlJsDatabase) {
     lastName: string,
     role: 'admin' | 'chef_projet' | 'donateur',
   ) => {
-    executeRun(
+    const result = executeRun(
       db,
       `INSERT INTO users (email, password_hash, first_name, last_name, role)
        VALUES (?, ?, ?, ?, ?)`,
       [email, passwordHash, firstName, lastName, role],
     );
+    if (typeof result.lastInsertRowid === 'number') {
+      return result.lastInsertRowid;
+    }
     const idRow = executeSelect<{ id: number }>(db, `SELECT last_insert_rowid() as id`, []);
     return Number(idRow[0]?.id ?? 0);
   };
@@ -290,7 +293,7 @@ async function seedDatabase(db: SqlJsDatabase) {
     chefProjectId: number;
     donors: number[];
   }) => {
-    executeRun(
+    const result = executeRun(
       db,
       `INSERT INTO projects (name, description, status, start_date, end_date, budget, spent, admin_id, chef_project_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -306,7 +309,10 @@ async function seedDatabase(db: SqlJsDatabase) {
         project.chefProjectId,
       ],
     );
-    const projectId = executeSelect<{ id: number }>(db, `SELECT last_insert_rowid() as id`, [])[0]?.id ?? 0;
+    const projectId =
+      typeof result.lastInsertRowid === 'number'
+        ? result.lastInsertRowid
+        : executeSelect<{ id: number }>(db, `SELECT last_insert_rowid() as id`, [])[0]?.id ?? 0;
     for (const donor of project.donors) {
       executeRun(db, `INSERT OR IGNORE INTO project_donors (project_id, user_id) VALUES (?, ?)`, [projectId, donor]);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,16 +11,27 @@ import { Plus, TrendingUp } from 'lucide-react';
 
 export default function ChefIndicators() {
   const { user } = useAuthStore();
-  const {
-    projects,
-    indicators,
-    fetchIndicatorsForProject,
-  } = useAppStore();
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
+  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const indicators = useAppStore((state) => state.indicators);
+  const fetchIndicatorsForProject = useAppStore(
+    (state) => state.fetchIndicatorsForProject,
+  );
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null);
 
-  const myProjects = projects.filter((p) => p.chefProjectId === user?.id);
+  useEffect(() => {
+    if (user && !loadedProjects) {
+      fetchProjects();
+    }
+  }, [user, loadedProjects, fetchProjects]);
+
+  const myProjects = useMemo(
+    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+    [getProjectsByUser, user?.id, user?.role],
+  );
 
   useEffect(() => {
     myProjects.forEach((project) => {
