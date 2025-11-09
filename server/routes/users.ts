@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getPool, query } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 import { hashPassword } from '../auth';
+import { sendNewUserPasswordEmail } from '../services/email';
 
 const router = Router();
 
@@ -98,6 +99,18 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
   );
 
   const created = result.rows[0];
+
+  try {
+    await sendNewUserPasswordEmail({
+      to: payload.email,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      password: payload.password,
+    });
+  } catch (error) {
+    console.error('Failed to send welcome email to new user', error);
+  }
+
   return res.status(201).json({
     id: created.id,
     email: created.email,
