@@ -72,6 +72,27 @@ function stripWrappingQuotes(value: string) {
 const DEFAULT_ACCESS_SECRET = 'impacttracker-access-secret-change-me';
 const DEFAULT_REFRESH_SECRET = 'impacttracker-refresh-secret-change-me';
 
+function parseBoolean(value: string | undefined) {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (['true', '1', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  if (['false', '0', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return undefined;
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -85,4 +106,12 @@ export const config = {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+  smtpSecure: parseBoolean(process.env.SMTP_SECURE),
+  smtpUser: process.env.SMTP_USER,
+  smtpPassword: process.env.SMTP_PASSWORD,
+  smtpFromEmail:
+    process.env.SMTP_FROM_EMAIL ?? process.env.SMTP_USER ?? 'noreply@impacttracker.local',
+  smtpFromName: process.env.SMTP_FROM_NAME ?? 'ImpactTracker',
 };
