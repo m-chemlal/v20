@@ -51,14 +51,6 @@ export default function ChefProjectDetails() {
     });
   }, [indicators, fetchIndicatorEntries]);
 
-  if (!match || !project) {
-    return (
-      <DashboardLayout title="Détails du Projet">
-        <div className="text-center py-10">Projet introuvable.</div>
-      </DashboardLayout>
-    );
-  }
-
   const handleUpdateValue = (indicator: Indicator) => {
     setSelectedIndicator(indicator);
     setIsModalOpen(true);
@@ -84,6 +76,14 @@ export default function ChefProjectDetails() {
       };
     });
   }, [indicators, getIndicatorEntries]);
+
+  if (!match || !project) {
+    return (
+      <DashboardLayout title="Détails du Projet">
+        <div className="text-center py-10">Projet introuvable.</div>
+      </DashboardLayout>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
