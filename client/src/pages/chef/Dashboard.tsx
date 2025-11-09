@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
@@ -18,12 +19,20 @@ import { format } from 'date-fns';
 
 export default function ChefDashboard() {
   const { user } = useAuthStore();
-  const { projects, indicators } = useAppStore();
+  const { projects, indicators, fetchIndicatorsForProject } = useAppStore();
 
   const myProjects = projects.filter((p) => p.chefProjectId === user?.id);
   const myIndicators = indicators.filter((i) =>
     myProjects.some((p) => p.id === i.projectId)
   );
+
+  useEffect(() => {
+    myProjects.forEach((project) => {
+      if (!indicators.some((indicator) => indicator.projectId === project.id)) {
+        fetchIndicatorsForProject(project.id);
+      }
+    });
+  }, [myProjects, indicators, fetchIndicatorsForProject]);
 
   const chartData = myIndicators.slice(0, 5).map((ind) => ({
     name: ind.name.substring(0, 10),
@@ -47,8 +56,10 @@ export default function ChefDashboard() {
     {
       label: 'Avg Progress',
       value: `${Math.round(
-        myIndicators.reduce((sum, ind) => sum + (ind.currentValue / ind.targetValue) * 100, 0) /
-          (myIndicators.length || 1)
+        myIndicators.reduce(
+          (sum, ind) => sum + (ind.currentValue / (ind.targetValue || 1)) * 100,
+          0,
+        ) / (myIndicators.length || 1)
       )}%`,
       icon: TrendingUp,
       color: 'from-emerald-500 to-emerald-600',
@@ -118,8 +129,15 @@ export default function ChefDashboard() {
 	        {/* Indicator Entry Form */}
 	        <motion.div variants={itemVariants}>
 	          <Card className="p-6">
-	            <h3 className="text-lg font-semibold mb-4">Enregistrer une Nouvelle Entrée d'Indicateur</h3>
-	            <IndicatorEntryForm onEntryAdded={() => {}} indicators={myIndicators} />
+            <h3 className="text-lg font-semibold mb-4">
+              Enregistrer une Nouvelle Entrée d'Indicateur
+            </h3>
+            <IndicatorEntryForm
+              onEntryAdded={() => {
+                myProjects.forEach((project) => fetchIndicatorsForProject(project.id));
+              }}
+              indicators={myIndicators}
+            />
 	          </Card>
 	        </motion.div>
 	
@@ -143,7 +161,8 @@ export default function ChefDashboard() {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {format(project.startDate, 'MMM dd')} - {format(project.endDate, 'MMM dd')}
+                      {format(project.startDate, 'MMM dd')} -{' '}
+                      {project.endDate ? format(project.endDate, 'MMM dd') : 'À définir'}
                     </div>
                   </div>
                 </div>
