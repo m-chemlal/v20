@@ -19,7 +19,6 @@ import ChefDashboard from "./pages/chef/Dashboard";
 import ChefProjects from "./pages/chef/Projects";
 import ChefProjectDetails from "./pages/chef/ProjectDetails";
 import ChefIndicators from "./pages/chef/Indicators";
-import ChefProjectDetails from "./pages/chef/ProjectDetails";
 import DonateurDashboard from "./pages/donateur/Dashboard";
 import DonateurProjects from "./pages/donateur/Projects";
 import DonateurProjectDetails from "./pages/donateur/ProjectDetails";
@@ -61,19 +60,9 @@ function Router() {
           <ChefProjects />
         </ProtectedRoute>
       </Route>
-      <Route path="/chef/projects/:id">
-        <ProtectedRoute requiredRole="chef_projet">
-          <ChefProjectDetails />
-        </ProtectedRoute>
-      </Route>
       <Route path="/chef/indicators">
         <ProtectedRoute requiredRole="chef_projet">
           <ChefIndicators />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/chef/projects/:id">
-        <ProtectedRoute requiredRole="chef_projet">
-          <ChefProjectDetails />
         </ProtectedRoute>
       </Route>
 
@@ -94,10 +83,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-	      {/* Public Routes */}
-	      <Route path="/">
-	        <Home />
-	      </Route>
+      {/* Public Routes */}
+      <Route path="/">
+        <Home />
+      </Route>
 
       {/* 404 Fallback */}
       <Route path="/404" component={NotFound} />

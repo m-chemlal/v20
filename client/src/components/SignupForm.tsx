@@ -18,7 +18,13 @@ export function SignupForm({ onSwitchToLogin }: { onSwitchToLogin: () => void })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await signup({ firstName, lastName, email, password });
+    const success = await signup({
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`.trim(),
+      email,
+      role: 'donateur',
+    });
     if (success) {
       // Redirection après inscription (qui connecte automatiquement)
       const user = useAuthStore.getState().user;

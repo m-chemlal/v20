@@ -6,10 +6,10 @@ export interface Project {
   description: string;
   status: ProjectStatus;
   startDate: Date;
-  endDate: Date;
+  endDate: Date | null;
   budget: number;
   spent: number;
-  adminId: string;
+  adminId: string | null;
   chefProjectId: string;
   donatorIds: string[];
   createdAt: Date;
@@ -35,7 +35,8 @@ export interface IndicatorEntry {
   evidence?: string;
   notes?: string;
   createdAt: Date;
-  createdBy: string;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 export interface ProjectWithIndicators extends Project {
