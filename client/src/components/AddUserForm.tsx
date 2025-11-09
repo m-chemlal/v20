@@ -10,6 +10,48 @@ import { Loader2 } from "lucide-react";
 import { usersAPI } from '@/services/api';
 import { toast } from 'sonner';
 
+const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
+const DIGITS = '0123456789';
+const SPECIAL = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+const getRandomInt = (max: number) => {
+  if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    return array[0] % max;
+  }
+
+  return Math.floor(Math.random() * max);
+};
+
+const pickRandomChar = (source: string) => source[getRandomInt(source.length)];
+
+const generateStrongPassword = (length = 16) => {
+  const allChars = UPPERCASE + LOWERCASE + DIGITS + SPECIAL;
+  const requiredChars = [
+    pickRandomChar(UPPERCASE),
+    pickRandomChar(LOWERCASE),
+    pickRandomChar(DIGITS),
+    pickRandomChar(SPECIAL),
+  ];
+
+  const remainingLength = Math.max(length, 12) - requiredChars.length;
+  const passwordChars = [...requiredChars];
+
+  for (let i = 0; i < remainingLength; i++) {
+    passwordChars.push(pickRandomChar(allChars));
+  }
+
+  // Shuffle characters to avoid predictable order of required characters
+  for (let i = passwordChars.length - 1; i > 0; i--) {
+    const j = getRandomInt(i + 1);
+    [passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
+  }
+
+  return passwordChars.join('');
+};
+
 const formSchema = z.object({
   firstName: z.string().min(2, { message: "Le prénom doit contenir au moins 2 caractères." }),
   lastName: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères." }),
@@ -30,9 +72,7 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
   });
   const onSubmit = async (data: AddUserFormData) => {
     try {
-      const randomPassword =
-        (typeof window !== 'undefined' && window.crypto?.randomUUID?.()) ||
-        `${Date.now().toString(36)}${Math.random().toString(36).slice(-6)}aA1!`;
+      const randomPassword = generateStrongPassword();
 
       const response = await usersAPI.create({
         email: data.email,
@@ -54,9 +94,9 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         email: response.email,
         firstName: response.firstName,
         lastName: response.lastName,
-        name: `${response.firstName} ${response.lastName}`.trim(),
+        name: `${response.firstName ?? ''} ${response.lastName ?? ''}`.trim(),
         role: response.role,
-        createdAt: new Date(response.createdAt ?? Date.now()),
+        createdAt: response.createdAt ? new Date(response.createdAt) : new Date(),
         avatar:
           response.avatar ??
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
