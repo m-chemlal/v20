@@ -59,22 +59,31 @@ export function EditUserForm({ user, onUserUpdated }: EditUserFormProps) {
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
+        prenom: data.firstName,
+        nom: data.lastName,
         role: data.role,
         ...(data.password ? { password: data.password } : {}),
       };
 
       const response = await usersAPI.update(user.id, payload);
 
+      const firstName = response.firstName ?? response.prenom ?? '';
+      const lastName = response.lastName ?? response.nom ?? '';
       const updatedUser: User = {
         id: response.id.toString(),
         email: response.email,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        name: `${response.firstName ?? ""} ${response.lastName ?? ""}`.trim(),
+        firstName,
+        lastName,
+        name: `${firstName ?? ""} ${lastName ?? ""}`.trim(),
         role: response.role,
-        createdAt: response.createdAt ? new Date(response.createdAt) : user.createdAt,
+        createdAt: response.createdAt
+          ? new Date(response.createdAt)
+          : response.date_creation
+          ? new Date(response.date_creation)
+          : user.createdAt,
         avatar:
           response.avatar ??
+          response.photo_profil ??
           user.avatar ??
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
       };

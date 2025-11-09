@@ -39,16 +39,25 @@ export default function AdminUsers() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const mapUser = useCallback(
-    (data: any): User => ({
-      id: data.id.toString(),
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      name: `${data.firstName} ${data.lastName}`.trim(),
-      role: data.role,
-      avatar: data.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email)}`,
-      createdAt: new Date(data.createdAt),
-    }),
+    (data: any): User => {
+      const firstName = data.firstName ?? data.prenom ?? '';
+      const lastName = data.lastName ?? data.nom ?? '';
+      const createdAtSource = data.createdAt ?? data.date_creation ?? Date.now();
+
+      return {
+        id: data.id.toString(),
+        email: data.email,
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`.trim(),
+        role: data.role,
+        avatar:
+          data.avatar ??
+          data.photo_profil ??
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email)}`,
+        createdAt: new Date(createdAtSource),
+      };
+    },
     [],
   );
 

@@ -74,6 +74,8 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
 
       const response = await usersAPI.create({
         email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
         prenom: data.firstName,
         nom: data.lastName,
         role: data.role,
@@ -87,15 +89,22 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         email: '',
         role: 'donateur',
       });
+      const firstName = response.firstName ?? response.prenom ?? '';
+      const lastName = response.lastName ?? response.nom ?? '';
       const createdUser: User = {
         id: response.id.toString(),
         email: response.email,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        name: `${response.firstName ?? ''} ${response.lastName ?? ''}`.trim(),
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`.trim(),
         role: response.role,
-        createdAt: response.createdAt ? new Date(response.createdAt) : new Date(),
+        createdAt: response.createdAt
+          ? new Date(response.createdAt)
+          : response.date_creation
+          ? new Date(response.date_creation)
+          : new Date(),
         avatar:
+          response.avatar ??
           response.photo_profil ??
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
       };
