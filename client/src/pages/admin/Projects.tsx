@@ -20,17 +20,10 @@ import { useAppStore } from '@/store/appStore';
 import { toast } from 'sonner';
 
 export default function AdminProjects() {
-  const {
-    projects,
-    isLoading,
-    fetchProjects,
-    loadedProjects,
-  } = useAppStore((state) => ({
-    projects: state.projects,
-    isLoading: state.isLoading,
-    fetchProjects: state.fetchProjects,
-    loadedProjects: state.loadedProjects,
-  }));
+  const projects = useAppStore((state) => state.projects);
+  const isLoading = useAppStore((state) => state.isLoading);
+  const fetchProjects = useAppStore((state) => state.fetchProjects);
+  const loadedProjects = useAppStore((state) => state.loadedProjects);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
