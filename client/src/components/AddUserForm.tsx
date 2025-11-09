@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, UserRole } from "@/types/auth";
-import { Loader2 } from "lucide-react";
+import { Copy, Loader2, RefreshCw } from "lucide-react";
 import { usersAPI } from '@/services/api';
 import { toast } from 'sonner';
+import { useState } from "react";
 
 const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
@@ -62,6 +63,7 @@ export const userFormSchema = z.object({
 type AddUserFormData = z.infer<typeof userFormSchema>;
 
 export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => void }) {
+  const [generatedPassword, setGeneratedPassword] = useState(generateStrongPassword());
   const { control, register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<AddUserFormData>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -70,8 +72,6 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
   });
   const onSubmit = async (data: AddUserFormData) => {
     try {
-      const randomPassword = generateStrongPassword();
-
       const response = await usersAPI.create({
         email: data.email,
         firstName: data.firstName,
@@ -79,16 +79,18 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         prenom: data.firstName,
         nom: data.lastName,
         role: data.role,
-        password: randomPassword,
-        actif: true,
+        password: generatedPassword,
       });
-      toast.success(`Utilisateur ${data.firstName} ${data.lastName} créé.`);
+      toast.success(`Utilisateur ${data.firstName} ${data.lastName} créé.`, {
+        description: `Mot de passe temporaire : ${generatedPassword}`,
+      });
       reset({
         firstName: '',
         lastName: '',
         email: '',
         role: 'donateur',
       });
+      setGeneratedPassword(generateStrongPassword());
       const firstName = response.firstName ?? response.prenom ?? '';
       const lastName = response.lastName ?? response.nom ?? '';
       const createdUser: User = {
@@ -172,8 +174,34 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
 
       <div className="space-y-2">
         <Label htmlFor="password">Mot de passe (Généré)</Label>
-        <Input id="password" type="text" value="Auto-Generated-Password" disabled />
-        <p className="text-xs text-muted-foreground">Le mot de passe sera généré automatiquement et envoyé à l'utilisateur.</p>
+        <div className="flex items-center gap-2">
+          <Input id="password" type="text" value={generatedPassword} readOnly className="font-mono" />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setGeneratedPassword(generateStrongPassword())}
+            title="Générer un nouveau mot de passe"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(generatedPassword);
+                toast.success('Mot de passe copié dans le presse-papiers');
+              } catch (err) {
+                console.error('Clipboard copy failed', err);
+                toast.error('Impossible de copier le mot de passe');
+              }
+            }}
+            title="Copier le mot de passe"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Conservez ce mot de passe temporaire pour le communiquer à l'utilisateur.</p>
       </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
