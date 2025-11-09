@@ -1,7 +1,8 @@
 import initSqlJs, { Database as SqlJsDatabase, SqlJsStatic } from 'sql.js';
 import bcrypt from 'bcryptjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from './config';
 
 export interface QueryResultRow {
@@ -105,8 +106,12 @@ const MIGRATIONS: readonly string[] = [
 
 async function getSqlModule(): Promise<SqlJsStatic> {
   if (!SQL) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const wasmPath = join(__dirname, '../node_modules/sql.js/dist');
+
     SQL = await initSqlJs({
-      locateFile: (file: string) => new URL(`../node_modules/sql.js/dist/${file}`, import.meta.url).pathname,
+      locateFile: (file: string) => resolve(wasmPath, file),
     });
   }
   return SQL;
@@ -238,18 +243,14 @@ function executeRun(db: SqlJsDatabase, sql: string, params: any[]) {
 }
 
 function persistDatabase(db: SqlJsDatabase, filePath: string | ':memory:') {
-  if (filePath === ':memory:') {
-    return;
-  }
+  if (filePath === ':memory:') return;
   const data = db.export();
   writeFileSync(filePath, Buffer.from(data));
 }
 
 async function seedDatabase(db: SqlJsDatabase) {
   const countRows = executeSelect<{ count: number }>(db, `SELECT COUNT(*) as count FROM users`, []);
-  if (countRows[0] && Number(countRows[0].count ?? 0) > 0) {
-    return;
-  }
+  if (countRows[0] && Number(countRows[0].count ?? 0) > 0) return;
 
   const adminPassword = await bcrypt.hash('Impact2024!', 12);
   const chefPassword = await bcrypt.hash('Impact2024!', 12);
@@ -314,8 +315,7 @@ async function seedDatabase(db: SqlJsDatabase) {
 
   const project1Id = insertProject({
     name: 'Education Initiative - Rural Schools',
-    description:
-      'Providing quality education to 500 children in rural areas through school infrastructure and teacher training.',
+    description: 'Providing quality education to 500 children in rural areas through school infrastructure and teacher training.',
     status: 'enCours',
     startDate: '2024-01-01',
     endDate: '2024-12-31',
@@ -361,14 +361,7 @@ async function seedDatabase(db: SqlJsDatabase) {
       db,
       `INSERT INTO indicators (project_id, name, description, target_value, current_value, unit)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        indicator.projectId,
-        indicator.name,
-        indicator.description,
-        indicator.targetValue,
-        indicator.currentValue,
-        indicator.unit,
-      ],
+      [indicator.projectId, indicator.name, indicator.description, indicator.targetValue, indicator.currentValue, indicator.unit],
     );
     const indicatorId = executeSelect<{ id: number }>(db, `SELECT last_insert_rowid() as id`, [])[0]?.id ?? 0;
     return Number(indicatorId);
@@ -423,23 +416,13 @@ async function seedDatabase(db: SqlJsDatabase) {
     db,
     `INSERT INTO indicator_entries (indicator_id, value, notes, created_by)
      VALUES (?, ?, ?, ?)`,
-    [
-      enrollmentIndicatorId,
-      420,
-      'Initial enrollment phase completed with strong community participation.',
-      chefId,
-    ],
+    [enrollmentIndicatorId, 420, 'Initial enrollment phase completed with strong community participation.', chefId],
   );
 
   executeRun(
     db,
     `INSERT INTO indicator_entries (indicator_id, value, notes, created_by)
      VALUES (?, ?, ?, ?)`,
-    [
-      enrollmentIndicatorId,
-      450,
-      'Enrollment drive extended to neighboring villages increasing participation.',
-      chefId,
-    ],
+    [enrollmentIndicatorId, 450, 'Enrollment drive extended to neighboring villages increasing participation.', chefId],
   );
 }
