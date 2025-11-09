@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { QueryResultRow } from 'pg';
+import type { QueryResultRow } from '../db';
 import { z } from 'zod';
 import { getPool, query } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
@@ -13,7 +13,7 @@ interface UserSummaryRow extends QueryResultRow {
   first_name: string;
   last_name: string;
   role: 'admin' | 'chef_projet' | 'donateur';
-  created_at: Date;
+  created_at: string;
 }
 
 router.get('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
@@ -21,7 +21,7 @@ router.get('/', requireAuth, requireRole('admin'), async (req: AuthenticatedRequ
   let text = `SELECT id, email, first_name, last_name, role, created_at FROM users`;
   const params: any[] = [];
   if (role) {
-    text += ' WHERE role = $1';
+    text += ' WHERE role = ?';
     params.push(role);
   }
   text += ' ORDER BY created_at DESC';
@@ -56,7 +56,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
   const payload = parsed.data;
   const pool = await getPool();
 
-  const existing = await pool.query(`SELECT 1 FROM users WHERE email = $1`, [payload.email.toLowerCase()]);
+  const existing = await pool.query(`SELECT 1 FROM users WHERE email = ?`, [payload.email.toLowerCase()]);
   if ((existing.rowCount ?? 0) > 0) {
     return res.status(409).json({ message: 'Email already in use' });
   }
@@ -64,7 +64,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
   const passwordHash = await hashPassword(payload.password);
   const result = await pool.query<UserSummaryRow>(
     `INSERT INTO users (email, password_hash, first_name, last_name, role)
-     VALUES ($1,$2,$3,$4,$5)
+     VALUES (?,?,?,?,?)
      RETURNING id, email, first_name, last_name, role, created_at`,
     [payload.email.toLowerCase(), passwordHash, payload.firstName, payload.lastName, payload.role],
   );

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import type { QueryResultRow } from 'pg';
 import { z } from 'zod';
+import type { QueryResultRow } from '../db';
 import { getPool, query } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 
@@ -11,35 +11,33 @@ interface IndicatorRow extends QueryResultRow {
   project_id: number;
   name: string;
   description: string | null;
-  target_value: string | number;
-  current_value: string | number;
+  target_value: number;
+  current_value: number;
   unit: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
 }
 
 interface IndicatorEntryRow extends QueryResultRow {
   id: number;
   indicator_id: number;
-  value: string | number;
+  value: number;
   notes: string | null;
   evidence: string | null;
   created_by: number | null;
-  created_at: Date;
-  first_name: string | null;
-  last_name: string | null;
+  created_at: string;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
-interface ProjectAccessRow extends QueryResultRow {
+interface ProjectAccess {
   chef_project_id: number;
   donor_ids: number[];
 }
 
-interface IndicatorWithProjectAccessRow extends IndicatorRow, ProjectAccessRow {}
-
 function canAccessProject(
   user: { id: number; role: 'admin' | 'chef_projet' | 'donateur' },
-  project: ProjectAccessRow,
+  project: ProjectAccess,
 ) {
   if (user.role === 'admin') {
     return true;
@@ -53,30 +51,42 @@ function canAccessProject(
   return false;
 }
 
-router.get('/project/:projectId', requireAuth, async (req: AuthenticatedRequest, res) => {
-  const { projectId } = req.params;
-  const projectResult = await query<ProjectAccessRow>(
-    `SELECT p.id, p.chef_project_id,
-            COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
-     FROM projects p
-     LEFT JOIN project_donors pd ON pd.project_id = p.id
-     WHERE p.id = $1
-     GROUP BY p.id`,
-    [Number(projectId)],
+async function getProjectAccess(projectId: number): Promise<ProjectAccess | null> {
+  const projectResult = await query<{ id: number; chef_project_id: number }>(
+    `SELECT id, chef_project_id FROM projects WHERE id = ?`,
+    [projectId],
   );
 
   if (projectResult.rowCount === 0) {
+    return null;
+  }
+
+  const donorsResult = await query<{ user_id: number }>(
+    `SELECT user_id FROM project_donors WHERE project_id = ?`,
+    [projectId],
+  );
+
+  return {
+    chef_project_id: projectResult.rows[0].chef_project_id,
+    donor_ids: donorsResult.rows.map((row) => row.user_id),
+  };
+}
+
+router.get('/project/:projectId', requireAuth, async (req: AuthenticatedRequest, res) => {
+  const projectId = Number(req.params.projectId);
+  const access = await getProjectAccess(projectId);
+
+  if (!access) {
     return res.status(404).json({ message: 'Project not found' });
   }
 
-  const project = projectResult.rows[0];
-  if (!canAccessProject(req.user!, project)) {
+  if (!canAccessProject(req.user!, access)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 
   const indicators = await query<IndicatorRow>(
-    `SELECT * FROM indicators WHERE project_id = $1 ORDER BY created_at ASC`,
-    [Number(projectId)],
+    `SELECT * FROM indicators WHERE project_id = ? ORDER BY created_at ASC`,
+    [projectId],
   );
 
   return res.json(
@@ -84,7 +94,7 @@ router.get('/project/:projectId', requireAuth, async (req: AuthenticatedRequest,
       id: row.id.toString(),
       projectId: row.project_id.toString(),
       name: row.name,
-      description: row.description,
+      description: row.description ?? undefined,
       targetValue: Number(row.target_value),
       currentValue: Number(row.current_value),
       unit: row.unit,
@@ -111,31 +121,20 @@ router.post('/', requireAuth, requireRole('admin', 'chef_projet'), async (req: A
 
   const payload = parsed.data;
   const projectId = Number(payload.projectId);
+  const access = await getProjectAccess(projectId);
 
-  const projectResult = await query<ProjectAccessRow>(
-    `SELECT p.id, p.chef_project_id,
-            COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
-     FROM projects p
-     LEFT JOIN project_donors pd ON pd.project_id = p.id
-     WHERE p.id = $1
-     GROUP BY p.id`,
-    [projectId],
-  );
-
-  if (projectResult.rowCount === 0) {
+  if (!access) {
     return res.status(404).json({ message: 'Project not found' });
   }
 
-  const project = projectResult.rows[0];
-  if (!canAccessProject(req.user!, project)) {
+  if (!canAccessProject(req.user!, access)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 
   const pool = await getPool();
   const insertResult = await pool.query(
     `INSERT INTO indicators (project_id, name, description, target_value, current_value, unit)
-     VALUES ($1,$2,$3,$4,$5,$6)
-     RETURNING *`,
+     VALUES (?,?,?,?,?,?)`,
     [
       projectId,
       payload.name,
@@ -146,12 +145,15 @@ router.post('/', requireAuth, requireRole('admin', 'chef_projet'), async (req: A
     ],
   );
 
-  const indicator = insertResult.rows[0];
+  const indicatorId = insertResult.lastInsertRowid!;
+  const indicatorRecord = await query<IndicatorRow>(`SELECT * FROM indicators WHERE id = ?`, [indicatorId]);
+  const indicator = indicatorRecord.rows[0];
+
   return res.status(201).json({
     id: indicator.id.toString(),
     projectId: indicator.project_id.toString(),
     name: indicator.name,
-    description: indicator.description,
+    description: indicator.description ?? undefined,
     targetValue: Number(indicator.target_value),
     currentValue: Number(indicator.current_value),
     unit: indicator.unit,
@@ -173,52 +175,49 @@ router.put('/:indicatorId', requireAuth, requireRole('admin', 'chef_projet'), as
   }
 
   const indicatorId = Number(req.params.indicatorId);
-  const indicatorResult = await query<IndicatorWithProjectAccessRow>(
-    `SELECT i.*, p.chef_project_id,
-            COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
-     FROM indicators i
-     INNER JOIN projects p ON p.id = i.project_id
-     LEFT JOIN project_donors pd ON pd.project_id = p.id
-     WHERE i.id = $1
-     GROUP BY i.id, p.chef_project_id`,
-    [indicatorId],
-  );
+  const indicatorResult = await query<IndicatorRow>(`SELECT * FROM indicators WHERE id = ?`, [indicatorId]);
 
   if (indicatorResult.rowCount === 0) {
     return res.status(404).json({ message: 'Indicator not found' });
   }
 
   const indicatorRow = indicatorResult.rows[0];
-  const accessScope: ProjectAccessRow = {
-    chef_project_id: indicatorRow.chef_project_id,
-    donor_ids: indicatorRow.donor_ids,
-  };
-  if (!canAccessProject(req.user!, accessScope)) {
+  const access = await getProjectAccess(indicatorRow.project_id);
+
+  if (!access) {
+    return res.status(404).json({ message: 'Project not found' });
+  }
+
+  if (!canAccessProject(req.user!, access)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 
   const pool = await getPool();
   await pool.query(
-    `UPDATE indicators
-     SET current_value = $1, updated_at = NOW()
-     WHERE id = $2`,
+    `UPDATE indicators SET current_value = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     [parsed.data.currentValue, indicatorId],
   );
 
   await pool.query(
     `INSERT INTO indicator_entries (indicator_id, value, notes, evidence, created_by)
-     VALUES ($1,$2,$3,$4,$5)` ,
-    [indicatorId, parsed.data.currentValue, parsed.data.notes, parsed.data.evidence ?? null, req.user!.id],
+     VALUES (?,?,?,?,?)`,
+    [
+      indicatorId,
+      parsed.data.currentValue,
+      parsed.data.notes ?? '',
+      parsed.data.evidence ?? null,
+      req.user!.id,
+    ],
   );
 
-  const updated = await query<IndicatorRow>(`SELECT * FROM indicators WHERE id = $1`, [indicatorId]);
+  const updated = await query<IndicatorRow>(`SELECT * FROM indicators WHERE id = ?`, [indicatorId]);
   const row = updated.rows[0];
 
   return res.json({
     id: row.id.toString(),
     projectId: row.project_id.toString(),
     name: row.name,
-    description: row.description,
+    description: row.description ?? undefined,
     targetValue: Number(row.target_value),
     currentValue: Number(row.current_value),
     unit: row.unit,
@@ -229,35 +228,28 @@ router.put('/:indicatorId', requireAuth, requireRole('admin', 'chef_projet'), as
 
 router.get('/:indicatorId/entries', requireAuth, async (req: AuthenticatedRequest, res) => {
   const indicatorId = Number(req.params.indicatorId);
-  const indicatorResult = await query<IndicatorWithProjectAccessRow>(
-    `SELECT i.*, p.chef_project_id,
-            COALESCE(array_agg(pd.user_id) FILTER (WHERE pd.user_id IS NOT NULL), '{}') AS donor_ids
-     FROM indicators i
-     INNER JOIN projects p ON p.id = i.project_id
-     LEFT JOIN project_donors pd ON pd.project_id = p.id
-     WHERE i.id = $1
-     GROUP BY i.id, p.chef_project_id`,
-    [indicatorId],
-  );
+  const indicatorResult = await query<IndicatorRow>(`SELECT * FROM indicators WHERE id = ?`, [indicatorId]);
 
   if (indicatorResult.rowCount === 0) {
     return res.status(404).json({ message: 'Indicator not found' });
   }
 
   const indicatorRow = indicatorResult.rows[0];
-  const accessScope: ProjectAccessRow = {
-    chef_project_id: indicatorRow.chef_project_id,
-    donor_ids: indicatorRow.donor_ids,
-  };
-  if (!canAccessProject(req.user!, accessScope)) {
+  const access = await getProjectAccess(indicatorRow.project_id);
+
+  if (!access) {
+    return res.status(404).json({ message: 'Project not found' });
+  }
+
+  if (!canAccessProject(req.user!, access)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 
   const entries = await query<IndicatorEntryRow>(
     `SELECT e.*, u.first_name, u.last_name
-     FROM indicator_entries e
-     LEFT JOIN users u ON u.id = e.created_by
-     WHERE e.indicator_id = $1
+       FROM indicator_entries e
+       LEFT JOIN users u ON u.id = e.created_by
+     WHERE e.indicator_id = ?
      ORDER BY e.created_at ASC`,
     [indicatorId],
   );
@@ -270,11 +262,9 @@ router.get('/:indicatorId/entries', requireAuth, async (req: AuthenticatedReques
       notes: row.notes ?? undefined,
       evidence: row.evidence ?? undefined,
       createdAt: row.created_at,
-      createdBy: row.created_by?.toString() ?? undefined,
+      createdBy: row.created_by != null ? row.created_by.toString() : undefined,
       createdByName:
-        row.first_name && row.last_name
-          ? `${row.first_name} ${row.last_name}`
-          : undefined,
+        row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : undefined,
     })),
   );
 });

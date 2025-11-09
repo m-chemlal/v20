@@ -1,6 +1,16 @@
 import { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../auth';
 import { getPool } from '../db';
+import type { QueryResultRow } from '../db';
+
+interface AuthUserRow extends QueryResultRow {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: 'admin' | 'chef_projet' | 'donateur';
+  created_at: string;
+}
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -29,8 +39,8 @@ export async function requireAuth(
   }
 
   const pool = await getPool();
-  const result = await pool.query(
-    `SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = $1`,
+  const result = await pool.query<AuthUserRow>(
+    `SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?`,
     [payload.sub],
   );
 

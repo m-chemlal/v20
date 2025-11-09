@@ -6,7 +6,7 @@ ImpactTracker est un portail web qui permet à l'ONG ImpactSolidaire de suivre s
 
 - [Node.js](https://nodejs.org/) 20+ (recommandé) ou 18+
 - [pnpm](https://pnpm.io/) 8+
-- PostgreSQL 14+ (optionnel : l'API démarre avec une base en mémoire si `DATABASE_URL` n'est pas défini)
+- [SQLite 3](https://www.sqlite.org/index.html) (installé sur votre machine ou via votre gestionnaire de paquets)
 
 ## 📦 Installation après clonage
 
@@ -27,10 +27,10 @@ ImpactTracker est un portail web qui permet à l'ONG ImpactSolidaire de suivre s
    - Ajustez si besoin les valeurs suivantes dans `.env` :
      - `VITE_API_URL` : URL de l'API (par défaut `http://localhost:4000/api`)
      - `ACCESS_TOKEN_SECRET` et `REFRESH_TOKEN_SECRET` : secrets JWT (32+ caractères chacun)
-    - `DATABASE_URL` : chaîne de connexion PostgreSQL (optionnelle) ou `file:./data/dev.sqlite` pour SQLite local
+     - `DATABASE_URL` : chemin vers votre fichier SQLite (par défaut `file:./data/dev.sqlite`)
      - `CORS_ORIGINS` : domaines autorisés pour le frontend
 
-   > Sans `DATABASE_URL`, l'API utilise automatiquement une base PostgreSQL en mémoire avec des données de démonstration.
+   > Au premier démarrage, le backend crée automatiquement la base SQLite indiquée et la remplit avec des données de démonstration.
 
 ## 🧑‍💻 Lancer l'environnement de développement
 
@@ -71,50 +71,27 @@ Les identifiants de démonstration (créés au démarrage du backend) sont :
 
 ## 🗃️ Utilisation d'une base SQLite locale
 
-> ⚠️ **Important :** le backend Express actuellement versionné parle exclusivement au driver PostgreSQL (`pg`).
-> Les requêtes SQL (agrégations, `RETURNING`, `array_agg`, etc.) et la couche d'accès aux données
-> ne sont pas compatibles SQLite pour le moment. Les instructions ci-dessous décrivent la configuration
-> côté variables d'environnement uniquement, mais une migration réelle vers SQLite nécessiterait
-> d'adapter le code du backend (requêtes, migrations et initialisation).
+Le backend tourne désormais entièrement sur SQLite. Pour personnaliser ou manipuler la base :
 
-Si vous préférez travailler avec SQLite plutôt qu'avec PostgreSQL, voici la configuration environnementale à appliquer
-avant d'entamer les modifications côté code :
-
-1. Copiez (ou créez) votre fichier `.env` puis remplacez la valeur de `DATABASE_URL` par :
-   ```env
-   DATABASE_URL=file:./data/dev.sqlite
-   ```
-2. Créez le dossier et le fichier de base de données :
+1. Vérifiez la valeur de `DATABASE_URL` dans `.env` (par défaut `file:./data/dev.sqlite`).
+2. Créez le dossier cible si besoin :
    ```bash
    mkdir -p data
-   touch data/dev.sqlite
    ```
-   Sous Windows PowerShell :
-   ```powershell
-   mkdir data
-   ni data/dev.sqlite -ItemType File
-   ```
-3. Installez le driver SQLite si votre gestionnaire de base de données l'exige (ex. Prisma, Sequelize) :
-   ```bash
-   pnpm add sqlite3
-   ```
-4. Relancez l'API avec `pnpm dev:server`. Les tables seront créées au démarrage si elles n'existent pas **uniquement si le code backend a été ajusté pour SQLite**.
+3. Lancez `pnpm dev:server` : le fichier SQLite est généré automatiquement et les données de démonstration sont insérées.
+4. Ouvrez le fichier (`data/dev.sqlite` par défaut) dans votre outil favori (DB Browser for SQLite, TablePlus, etc.) pour consulter les tables `users`, `projects`, `indicators`...
 
-## 🗃️ Utilisation d'une base PostgreSQL réelle
+> Besoin de repartir de zéro ? Supprimez simplement le fichier `.sqlite`, puis relancez le serveur : les migrations et données d'exemple seront rejouées.
 
-Pour utiliser une base de données PostgreSQL persistante :
+## 🗃️ Et PostgreSQL ?
 
-1. Créez une base de données et un utilisateur (exemple) :
-   ```sql
-   CREATE DATABASE impacttracker;
-   CREATE USER impacttracker_user WITH PASSWORD 'motdepasse';
-   GRANT ALL PRIVILEGES ON DATABASE impacttracker TO impacttracker_user;
-   ```
-2. Renseignez la chaîne de connexion dans `.env` :
-   ```env
-   DATABASE_URL=postgresql://impacttracker_user:motdepasse@localhost:5432/impacttracker
-   ```
-3. (Optionnel) Importez vos données ou laissez l'API créer les tables et jeux de données de démonstration automatiquement au premier démarrage.
+L'API est optimisée pour SQLite et n'inclut plus le driver PostgreSQL. Si vous souhaitez utiliser PostgreSQL, vous devrez :
+
+- réintroduire un client compatible (`pg`, `kysely`, etc.) ;
+- ajuster les migrations et requêtes dans `server/db.ts` et les routes ;
+- remplacer `DATABASE_URL` par une chaîne de connexion PostgreSQL.
+
+Ces adaptations sortent du périmètre de la configuration par défaut fournie dans ce dépôt.
 
 ---
 

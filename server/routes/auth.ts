@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { comparePassword, createTokens, sanitizeUser, verifyRefreshToken } from '../auth';
 import { getPool } from '../db';
+import type { DbUser } from '../db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -19,8 +20,8 @@ router.post('/login', async (req, res) => {
 
   const { email, password } = parseResult.data;
   const pool = await getPool();
-  const result = await pool.query(
-    `SELECT id, email, password_hash, first_name, last_name, role, created_at FROM users WHERE email = $1`,
+  const result = await pool.query<DbUser>(
+    `SELECT id, email, password_hash, first_name, last_name, role, created_at FROM users WHERE email = ?`,
     [email.toLowerCase()],
   );
 
@@ -52,8 +53,8 @@ router.post('/refresh', async (req, res) => {
   }
 
   const pool = await getPool();
-  const result = await pool.query(
-    `SELECT id, email, password_hash, first_name, last_name, role, created_at FROM users WHERE id = $1`,
+  const result = await pool.query<DbUser>(
+    `SELECT id, email, password_hash, first_name, last_name, role, created_at FROM users WHERE id = ?`,
     [payload.sub],
   );
   if (result.rowCount === 0) {
@@ -71,8 +72,8 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
   }
 
   const pool = await getPool();
-  const result = await pool.query(
-    `SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = $1`,
+  const result = await pool.query<DbUser>(
+    `SELECT id, email, password_hash, first_name, last_name, role, created_at FROM users WHERE id = ?`,
     [req.user.id],
   );
 
