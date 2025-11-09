@@ -1,0 +1,49 @@
+# FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+pymysql==1.1.0
+cryptography==41.0.7
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.1
+cryptography==41.0.7
+
+# Validation
+email-validator==2.1.0
+phonenumbers==8.13.26
+
+# Storage (S3-compatible)
+boto3==1.29.7
+botocore==1.32.7
+
+# Email
+aiosmtplib==3.0.1
+jinja2==3.1.2
+
+# Exports
+openpyxl==3.1.2
+reportlab==4.0.7
+xlsxwriter==3.1.9
+
+# Rate limiting
+slowapi==0.1.9
+redis==5.0.1
+
+# Utilities
+python-dotenv==1.0.0
+pytz==2023.3
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
