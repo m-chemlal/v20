@@ -72,12 +72,12 @@ export default function AdminProjects() {
     }
   };
 
-  const safeNumber = (value: number | null | undefined) =>
+  const normalizeNumber = (value: number | null | undefined) =>
     typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
   const formatCurrency = (value: number | null | undefined) =>
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-      safeNumber(value),
+      normalizeNumber(value),
     );
 
   const formatDateValue = (value: Date | string | null | undefined) => {
@@ -227,13 +227,17 @@ export default function AdminProjects() {
           <Card className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Budget Total</p>
             <p className="text-2xl font-bold">
-              {formatCurrency(projects.reduce((sum, p) => sum + safeNumber(p.budget), 0))}
+              {formatCurrency(
+                projects.reduce((sum, p) => sum + normalizeNumber(p.budget), 0),
+              )}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Dépensé Total</p>
             <p className="text-2xl font-bold text-purple-600">
-              {formatCurrency(projects.reduce((sum, p) => sum + safeNumber(p.spent), 0))}
+              {formatCurrency(
+                projects.reduce((sum, p) => sum + normalizeNumber(p.spent), 0),
+              )}
             </p>
           </Card>
         </div>
