@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -52,20 +52,18 @@ const generateStrongPassword = (length = 16) => {
   return passwordChars.join('');
 };
 
-const formSchema = z.object({
+export const userFormSchema = z.object({
   firstName: z.string().min(2, { message: "Le prénom doit contenir au moins 2 caractères." }),
   lastName: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères." }),
   email: z.string().email({ message: "Adresse email invalide." }),
   role: z.enum(['admin', 'chef_projet', 'donateur'], { message: "Veuillez sélectionner un rôle." }),
-  // Password is auto-generated, but we keep it in the schema for validation if we were to use it
-  password: z.string().optional(),
 });
 
-type AddUserFormData = z.infer<typeof formSchema>;
+type AddUserFormData = z.infer<typeof userFormSchema>;
 
 export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => void }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<AddUserFormData>({
-    resolver: zodResolver(formSchema),
+  const { control, register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<AddUserFormData>({
+    resolver: zodResolver(userFormSchema),
     defaultValues: {
       role: 'donateur',
     }
@@ -88,7 +86,6 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         lastName: '',
         email: '',
         role: 'donateur',
-        password: undefined,
       });
       const createdUser: User = {
         id: response.id.toString(),
@@ -135,21 +132,32 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
 
       <div className="space-y-2">
         <Label htmlFor="role">Rôle</Label>
-        <Select
-          value={watch('role') || 'donateur'}
-          onValueChange={(value) => setValue('role', value as UserRole, { shouldValidate: true })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Sélectionner un rôle" />
-          </SelectTrigger>
-          <SelectContent>
-            {['admin', 'chef_projet', 'donateur'].map((role) => (
-              <SelectItem key={role} value={role}>
-                {role.replace('_', ' ').toUpperCase()}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? 'donateur'}
+              onValueChange={(value) => field.onChange(value as UserRole)}
+              onOpenChange={(open) => {
+                if (!open) {
+                  field.onBlur();
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un rôle" />
+              </SelectTrigger>
+              <SelectContent>
+                {['admin', 'chef_projet', 'donateur'].map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role.replace('_', ' ').toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
         {errors.role && <p className="text-red-500 text-xs">{errors.role.message}</p>}
       </div>
 
