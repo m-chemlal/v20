@@ -1,5 +1,10 @@
 import { config } from '../config';
 
+type NodemailerSentMessageInfo = {
+  messageId?: string;
+  [key: string]: unknown;
+};
+
 type NodemailerTransporter = {
   sendMail: (options: {
     from?: string;
@@ -7,7 +12,17 @@ type NodemailerTransporter = {
     subject: string;
     text: string;
     html: string;
-  }) => Promise<unknown>;
+  }) => Promise<NodemailerSentMessageInfo>;
+};
+
+type NodemailerTestAccount = {
+  user: string;
+  pass: string;
+  smtp: {
+    host: string;
+    port: number;
+    secure: boolean;
+  };
 };
 
 type NodemailerModule = {
@@ -17,6 +32,8 @@ type NodemailerModule = {
     secure: boolean;
     auth?: { user: string; pass: string };
   }) => NodemailerTransporter;
+  createTestAccount?: () => Promise<NodemailerTestAccount>;
+  getTestMessageUrl?: (info: NodemailerSentMessageInfo) => string | false;
 };
 
 interface NewUserEmailOptions {
@@ -29,6 +46,7 @@ interface NewUserEmailOptions {
 let transporter: NodemailerTransporter | null = null;
 let cachedNodemailer: NodemailerModule | null = null;
 let nodemailerLoadAttempted = false;
+let etherealAccount: NodemailerTestAccount | null = null;
 
 async function loadNodemailer(): Promise<NodemailerModule | null> {
   if (cachedNodemailer || nodemailerLoadAttempted) {
@@ -58,24 +76,18 @@ async function loadNodemailer(): Promise<NodemailerModule | null> {
   }
 }
 
-async function getTransporter(): Promise<NodemailerTransporter | null> {
-  if (transporter) {
-    return transporter;
-  }
-
+async function buildConfiguredTransport(nodemailer: NodemailerModule): Promise<NodemailerTransporter | null> {
   if (!config.smtpHost) {
-    return null;
-  }
-
-  const nodemailer = await loadNodemailer();
-  if (!nodemailer) {
     return null;
   }
 
   transporter = nodemailer.createTransport({
     host: config.smtpHost,
     port: config.smtpPort ?? 587,
-    secure: typeof config.smtpSecure === 'boolean' ? config.smtpSecure : (config.smtpPort ?? 587) === 465,
+    secure:
+      typeof config.smtpSecure === 'boolean'
+        ? config.smtpSecure
+        : (config.smtpPort ?? 587) === 465,
     auth:
       config.smtpUser && config.smtpPassword
         ? { user: config.smtpUser, pass: config.smtpPassword }
@@ -83,6 +95,51 @@ async function getTransporter(): Promise<NodemailerTransporter | null> {
   });
 
   return transporter;
+}
+
+async function buildEtherealTransport(nodemailer: NodemailerModule): Promise<NodemailerTransporter | null> {
+  if (!nodemailer.createTestAccount) {
+    console.info('[email] Nodemailer available but no test account helper exposed - emails disabled');
+    return null;
+  }
+
+  if (!etherealAccount) {
+    try {
+      etherealAccount = await nodemailer.createTestAccount();
+      console.info(
+        `[email] Using Ethereal test SMTP account ${etherealAccount.user}. Emails will be available via preview URLs.`,
+      );
+    } catch (error) {
+      console.error('[email] Failed to create Ethereal test account', error);
+      return null;
+    }
+  }
+
+  transporter = nodemailer.createTransport({
+    host: etherealAccount.smtp.host,
+    port: etherealAccount.smtp.port,
+    secure: etherealAccount.smtp.secure,
+    auth: { user: etherealAccount.user, pass: etherealAccount.pass },
+  });
+
+  return transporter;
+}
+
+async function getTransporter(): Promise<NodemailerTransporter | null> {
+  if (transporter) {
+    return transporter;
+  }
+
+  const nodemailer = await loadNodemailer();
+  if (!nodemailer) {
+    return null;
+  }
+
+  if (config.smtpHost) {
+    return buildConfiguredTransport(nodemailer);
+  }
+
+  return buildEtherealTransport(nodemailer);
 }
 
 export async function sendNewUserPasswordEmail({
@@ -126,13 +183,20 @@ export async function sendNewUserPasswordEmail({
   }
 
   try {
-    await activeTransporter.sendMail({
+    const info = await activeTransporter.sendMail({
       from: mailFrom,
       to,
       subject,
       text: textBody,
       html: htmlBody,
     });
+
+    if (!config.smtpHost && cachedNodemailer?.getTestMessageUrl) {
+      const preview = cachedNodemailer.getTestMessageUrl(info);
+      if (preview) {
+        console.info(`[email] Preview welcome email at ${preview}`);
+      }
+    }
   } catch (error) {
     console.error('[email] Failed to send welcome email', error);
     throw error;
