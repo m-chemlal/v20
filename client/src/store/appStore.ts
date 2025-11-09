@@ -11,7 +11,7 @@ interface AppStoreState {
   error: string | null;
   inactivityTimeout: NodeJS.Timeout | null;
   loadedProjects: boolean;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (options?: { force?: boolean }) => Promise<void>;
   refreshProject: (projectId: string) => Promise<void>;
   getProjects: () => Project[];
   getProjectById: (id: string) => Project | undefined;
@@ -135,8 +135,20 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   inactivityTimeout: null,
   loadedProjects: false,
 
-  async fetchProjects() {
+  async fetchProjects(options = {}) {
+    const { force = false } = options;
+    const { loadedProjects, isLoading } = get();
+
+    if (isLoading) {
+      return;
+    }
+
+    if (loadedProjects && !force) {
+      return;
+    }
+
     set({ isLoading: true, error: null });
+
     try {
       const data = await projectsAPI.getAll();
       const projects = data.map(mapProjectResponse);
@@ -145,6 +157,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       console.error('Failed to load projects', error);
       set({
         isLoading: false,
+        loadedProjects: true,
         error:
           error?.response?.data?.message ??
           "Impossible de charger les projets. Vérifiez la connexion avec l'API.",

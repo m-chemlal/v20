@@ -204,7 +204,7 @@ export async function sendNewUserPasswordEmail({
       return;
     } catch (error) {
       console.error('[email] Failed to send welcome email via SMTP transport', error);
-      throw error;
+      transporter = null;
     }
   }
 

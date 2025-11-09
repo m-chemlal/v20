@@ -93,6 +93,56 @@ function parseBoolean(value: string | undefined) {
   return undefined;
 }
 
+function coalesceString(...values: Array<string | undefined>) {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+const rawSmtpHost = coalesceString(
+  process.env.SMTP_HOST,
+  process.env.MAILTRAP_SMTP_HOST,
+  process.env.MAILTRAP_HOST,
+);
+
+const rawSmtpPort = coalesceString(
+  process.env.SMTP_PORT,
+  process.env.MAILTRAP_SMTP_PORT,
+  process.env.MAILTRAP_PORT,
+);
+
+const rawSmtpUser = coalesceString(
+  process.env.SMTP_USER,
+  process.env.MAILTRAP_SMTP_USER,
+  process.env.MAILTRAP_USER,
+  process.env.MAILTRAP_USERNAME,
+  process.env.MAILTRAP_LOGIN,
+);
+
+const rawSmtpPassword = coalesceString(
+  process.env.SMTP_PASSWORD,
+  process.env.MAILTRAP_SMTP_PASSWORD,
+  process.env.MAILTRAP_PASSWORD,
+  process.env.MAILTRAP_PASS,
+);
+
+const rawSmtpSecure = coalesceString(
+  process.env.SMTP_SECURE,
+  process.env.MAILTRAP_SMTP_SECURE,
+);
+
+const rawMailtrapApiToken = coalesceString(
+  process.env.MAILTRAP_API_TOKEN,
+  process.env.MAILTRAP_TOKEN,
+);
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -106,15 +156,19 @@ export const config = {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
-  smtpHost: process.env.SMTP_HOST,
-  smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
-  smtpSecure: parseBoolean(process.env.SMTP_SECURE),
-  smtpUser: process.env.SMTP_USER,
-  smtpPassword: process.env.SMTP_PASSWORD,
+  smtpHost: rawSmtpHost,
+  smtpPort: rawSmtpPort ? Number(rawSmtpPort) : undefined,
+  smtpSecure: parseBoolean(rawSmtpSecure),
+  smtpUser: rawSmtpUser,
+  smtpPassword: rawSmtpPassword,
   smtpFromEmail:
-    process.env.SMTP_FROM_EMAIL ?? process.env.SMTP_USER ?? 'noreply@impacttracker.local',
+    coalesceString(
+      process.env.SMTP_FROM_EMAIL,
+      process.env.MAILTRAP_FROM_EMAIL,
+      rawSmtpUser,
+    ) ?? 'noreply@impacttracker.local',
   smtpFromName: process.env.SMTP_FROM_NAME ?? 'ImpactTracker',
-  mailtrapApiToken: process.env.MAILTRAP_API_TOKEN ?? process.env.MAILTRAP_TOKEN,
+  mailtrapApiToken: rawMailtrapApiToken,
   mailtrapApiEndpoint:
     process.env.MAILTRAP_API_ENDPOINT ?? 'https://send.api.mailtrap.io/api/send',
 };

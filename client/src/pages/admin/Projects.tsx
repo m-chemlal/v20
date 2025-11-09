@@ -41,7 +41,7 @@ export default function AdminProjects() {
 
   const handleProjectAdded = async () => {
     setIsModalOpen(false);
-    await fetchProjects();
+    await fetchProjects({ force: true });
   };
 
   const handleDelete = () => {
