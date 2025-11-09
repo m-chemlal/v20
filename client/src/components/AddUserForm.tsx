@@ -93,11 +93,11 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
       const createdUser: User = {
         id: response.id.toString(),
         email: response.email,
-        firstName: response.prenom,
-        lastName: response.nom,
-        name: `${response.prenom ?? ''} ${response.nom ?? ''}`.trim(),
+        firstName: response.firstName,
+        lastName: response.lastName,
+        name: `${response.firstName ?? ''} ${response.lastName ?? ''}`.trim(),
         role: response.role,
-        createdAt: response.date_creation ? new Date(response.date_creation) : new Date(),
+        createdAt: response.createdAt ? new Date(response.createdAt) : new Date(),
         avatar:
           response.photo_profil ??
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
