@@ -76,10 +76,11 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
 
       const response = await usersAPI.create({
         email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
+        prenom: data.firstName,
+        nom: data.lastName,
         role: data.role,
         password: randomPassword,
+        actif: true,
       });
       toast.success(`Utilisateur ${data.firstName} ${data.lastName} créé.`);
       reset({
@@ -98,7 +99,7 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         role: response.role,
         createdAt: response.createdAt ? new Date(response.createdAt) : new Date(),
         avatar:
-          response.avatar ??
+          response.photo_profil ??
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(response.email)}`,
       };
       onUserAdded?.(createdUser);
