@@ -33,25 +33,26 @@ export default function ChefDashboard() {
     }
   }, [user, loadedProjects, fetchProjects]);
 
-  const myProjects = useMemo(
+  const assignedProjects = useMemo(
     () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
     [getProjectsByUser, user?.id, user?.role],
   );
+
   const myIndicators = useMemo(
     () =>
       indicators.filter((indicator) =>
-        myProjects.some((project) => project.id === indicator.projectId),
+        assignedProjects.some((project) => project.id === indicator.projectId),
       ),
-    [indicators, myProjects],
+    [indicators, assignedProjects],
   );
 
   useEffect(() => {
-    myProjects.forEach((project) => {
+    assignedProjects.forEach((project) => {
       if (!indicators.some((indicator) => indicator.projectId === project.id)) {
         fetchIndicatorsForProject(project.id);
       }
     });
-  }, [myProjects, indicators, fetchIndicatorsForProject]);
+  }, [assignedProjects, indicators, fetchIndicatorsForProject]);
 
   const chartData = myIndicators.slice(0, 5).map((ind) => ({
     name: ind.name.substring(0, 10),
@@ -62,7 +63,7 @@ export default function ChefDashboard() {
   const stats = [
     {
       label: 'My Projects',
-      value: myProjects.length,
+      value: assignedProjects.length,
       icon: Briefcase,
       color: 'from-purple-500 to-purple-600',
     },
@@ -153,7 +154,9 @@ export default function ChefDashboard() {
             </h3>
             <IndicatorEntryForm
               onEntryAdded={() => {
-                myProjects.forEach((project) => fetchIndicatorsForProject(project.id));
+                assignedProjects.forEach((project) => {
+                  fetchIndicatorsForProject(project.id);
+                });
               }}
               indicators={myIndicators}
             />
@@ -165,7 +168,7 @@ export default function ChefDashboard() {
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">My Projects</h3>
             <div className="space-y-3">
-              {myProjects.map((project) => (
+              {assignedProjects.map((project) => (
                 <div
                   key={project.id}
                   className="p-4 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
