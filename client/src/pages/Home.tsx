@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { APP_TITLE } from "@/const";
 import { useLocation } from "wouter";
-import { ArrowRight, CheckCircle, Lock, Mail, User } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  CheckCircle2,
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -18,29 +25,38 @@ function Header() {
           <span className="text-xl font-bold text-primary">ImpactTracker</span>
         </div>
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-          <a href="#features" className="text-gray-600 hover:text-primary transition-colors dark:text-gray-300 dark:hover:text-primary">
-            Fonctionnalités
+          <a
+            href="#features"
+            className="text-gray-600 hover:text-primary transition-colors dark:text-gray-300 dark:hover:text-primary"
+          >
+            Features
           </a>
-          <a href="#testimonials" className="text-gray-600 hover:text-primary transition-colors dark:text-gray-300 dark:hover:text-primary">
-            Témoignages
+          <a
+            href="#process"
+            className="text-gray-600 hover:text-primary transition-colors dark:text-gray-300 dark:hover:text-primary"
+          >
+            How it Works
           </a>
-          <a href="#contact" className="text-gray-600 hover:text-primary transition-colors dark:text-gray-300 dark:hover:text-primary">
-            Contact
+          <a
+            href="#impact"
+            className="text-gray-600 hover:text-primary transition-colors dark:text-gray-300 dark:hover:text-primary"
+          >
+            Impact
           </a>
         </nav>
         <div className="flex items-center space-x-4">
           <ThemeToggle />
           {isAuthenticated ? (
             <Button onClick={() => navigate("/chef/dashboard")} variant="secondary">
-              Aller au Tableau de Bord
+              Go to Dashboard
             </Button>
           ) : (
             <>
               <Button variant="ghost" onClick={() => navigate("/login")} className="hidden sm:inline-flex">
-                Se Connecter
+                Sign In
               </Button>
               <Button onClick={() => navigate("/login")} className="bg-primary hover:bg-primary/90">
-                S'inscrire
+                Get Started
               </Button>
             </>
           )}
@@ -53,37 +69,126 @@ function Header() {
 function LandingHero() {
   const [, navigate] = useLocation();
   return (
-    <section className="relative pt-20 pb-28 lg:pt-32 lg:pb-40 bg-white dark:bg-gray-900 overflow-hidden">
+    <section className="relative pt-20 pb-28 lg:pt-32 lg:pb-36 bg-gradient-to-b from-white to-primary/10 dark:from-gray-950 dark:to-gray-900 overflow-hidden">
+      <div className="absolute inset-x-0 top-10 -z-10 flex justify-center opacity-30 blur-3xl">
+        <div className="h-56 w-96 rounded-full bg-primary/40 dark:bg-primary/30" />
+      </div>
       <div className="container mx-auto px-4">
-        <div className="flex flex-wrap -mx-4 items-center">
-          <div className="w-full lg:w-6/12 px-4 mb-12 lg:mb-0">
-            <div className="max-w-lg">
-              <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
-                Transformez l'Impact avec <span className="text-primary">Transparence</span>
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-                La plateforme de gestion de projets pour ONG et associations qui connecte donateurs, gestionnaires et bénéficiaires pour un impact mesurable et transparent.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Button size="lg" onClick={() => navigate("/login")} className="bg-primary hover:bg-primary/90 text-white text-lg font-semibold px-8 py-3 rounded-lg shadow-lg transition duration-300">
-                  Démarrer Gratuitement
-                </Button>
-                <Button variant="outline" size="lg" className="text-primary border-primary hover:bg-primary/10 text-lg font-semibold px-8 py-3 rounded-lg transition duration-300">
-                  Voir la Démo
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
+        <div className="grid items-center gap-16 lg:grid-cols-2">
+          <div>
+            <div className="inline-flex items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+              New in v2.0 — Unified analytics for every project
+            </div>
+            <h1 className="mt-6 text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl lg:text-6xl">
+              Transform your Impact with <span className="text-primary">Transparency</span>
+            </h1>
+            <p className="mt-6 text-lg leading-relaxed text-gray-600 dark:text-gray-300">
+              ImpactTracker centralises project monitoring for NGOs and social organisations. Engage donors, coordinate project managers, and report measurable outcomes with one intuitive dashboard.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Button
+                size="lg"
+                onClick={() => navigate("/login")}
+                className="bg-primary px-8 py-6 text-lg font-semibold shadow-lg hover:bg-primary/90"
+              >
+                Start for Free
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-primary px-8 py-6 text-lg font-semibold text-primary hover:bg-primary/10"
+              >
+                View Live Demo
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                GDPR-ready data security
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Built for NGOs & foundations
               </div>
             </div>
           </div>
-          <div className="w-full lg:w-6/12 px-4">
-            {/* Placeholder for the dashboard image preview */}
-            <div className="relative p-4 bg-white dark:bg-gray-800 rounded-xl shadow-2xl">
-              <img
-                className="w-full h-auto rounded-lg"
-                src="/dashboard-preview.png" // Assuming a dashboard preview image is added to public folder
-                alt="ImpactTracker Dashboard Preview"
-              />
-              <div className="absolute top-0 left-0 w-full h-full bg-primary/10 rounded-xl pointer-events-none"></div>
+          <div className="relative mx-auto w-full max-w-xl">
+            <div className="absolute -top-8 -left-6 hidden h-20 w-20 rounded-full bg-primary/20 blur-2xl md:block" />
+            <div className="absolute -bottom-10 -right-8 hidden h-24 w-24 rounded-full bg-primary/30 blur-3xl md:block" />
+            <div className="relative rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-2xl backdrop-blur dark:border-primary/20 dark:bg-gray-900/80">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="h-3 w-3 rounded-full bg-red-400" />
+                  <span className="h-3 w-3 rounded-full bg-amber-300" />
+                  <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                </div>
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Admin Dashboard
+                </span>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-[220px_auto]">
+                <div className="rounded-2xl bg-gradient-to-br from-primary/90 via-primary to-primary/70 p-6 text-white shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium uppercase tracking-wide">Projects</p>
+                    <LayoutDashboard className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-3xl font-bold">24 Active</p>
+                  <div className="mt-6 space-y-3">
+                    {[
+                      { label: "Education", value: 68 },
+                      { label: "Clean Water", value: 52 },
+                      { label: "Healthcare", value: 44 },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <div className="flex items-center justify-between text-xs font-medium">
+                          <span>{item.label}</span>
+                          <span>{item.value}%</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full rounded-full bg-white/20">
+                          <div
+                            className="h-1.5 rounded-full bg-white"
+                            style={{ width: `${item.value}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  <div className="rounded-2xl border border-gray-200/80 p-5 dark:border-gray-700/60">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Overview</p>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
+                        +12% vs last month
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-end gap-3">
+                      {[65, 80, 55, 70].map((value, index) => (
+                        <div key={index} className="flex-1 rounded-t-md bg-primary/60 dark:bg-primary/70" style={{ height: `${value}%` }} />
+                      ))}
+                    </div>
+                    <div className="mt-3 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span>Education</span>
+                      <span>Water</span>
+                      <span>Health</span>
+                      <span>Environment</span>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-700/60">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Active Indicators</p>
+                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">108</p>
+                      <p className="mt-1 text-xs text-emerald-500">+5 this week</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-700/60">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Critical Issues</p>
+                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">2</p>
+                      <p className="mt-1 text-xs text-rose-500">Immediate attention</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -95,45 +200,169 @@ function LandingHero() {
 function LandingFeatures() {
   const features = [
     {
-      icon: User,
-      title: "Inscription & Configuration",
-      description: "Créez votre compte et configurez votre profil selon votre rôle : Administrateur, Chef de projet ou Donateur.",
+      icon: LayoutDashboard,
+      title: "Unified project dashboards",
+      description:
+        "Monitor every initiative in real time with configurable indicators, role-based permissions, and instant collaboration tools.",
     },
     {
-      icon: Mail,
-      title: "Gestion de Projets",
-      description: "Créez, gérez et suivez vos projets avec des indicateurs personnalisables et des rapports en temps réel.",
+      icon: BarChart3,
+      title: "Impact analytics & reporting",
+      description:
+        "Build evidence-based stories with auto-generated insights, donor-ready exports, and sustainability metrics in one click.",
     },
     {
-      icon: CheckCircle,
-      title: "Suivi & Transparence",
-      description: "Visualisez l'impact de vos actions grâce à des tableaux de bord interactifs et des statistiques détaillées.",
+      icon: ShieldCheck,
+      title: "Enterprise-grade compliance",
+      description:
+        "Keep sensitive beneficiary data safe with encrypted storage, audit logs, and GDPR-ready workflows for your entire team.",
     },
   ];
 
   return (
-    <section id="features" className="py-20 bg-gray-50 dark:bg-gray-950">
-      <div className="container mx-auto px-4 text-center">
-        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-4">
-          Trois Étapes Simples
-        </h2>
-        <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
-          De l'inscription au suivi de l'impact, découvrez comment ImpactTracker facilite la gestion de vos projets.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div key={index} className="p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 transition-transform hover:scale-[1.02]">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 text-primary">
-                <feature.icon className="w-6 h-6" />
+    <section id="features" className="py-20 bg-white dark:bg-gray-950">
+      <div className="container mx-auto px-4">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
+            Everything you need to drive measurable change
+          </h2>
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
+            ImpactTracker connects project teams, field data, and donor visibility so you can focus on delivering outcomes instead of managing spreadsheets.
+          </p>
+        </div>
+        <div className="mt-14 grid gap-8 md:grid-cols-3">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 p-8 text-left shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div className="inline-flex rounded-full bg-primary/10 p-3 text-primary">
+                <feature.icon className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                {feature.title}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                {feature.description}
+              <h3 className="mt-6 text-xl font-semibold text-gray-900 dark:text-white">{feature.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingProcess() {
+  const steps = [
+    {
+      title: "Onboard your organisation",
+      description: "Invite administrators, project managers, and donors with tailored permissions in minutes.",
+      icon: Users,
+    },
+    {
+      title: "Design your projects",
+      description: "Set objectives, indicators, and milestones while connecting data sources from the field.",
+      icon: CheckCircle2,
+    },
+    {
+      title: "Report transparent results",
+      description: "Share live dashboards with stakeholders and export donor-ready reports with a single click.",
+      icon: ArrowRight,
+    },
+  ];
+
+  return (
+    <section id="process" className="py-20 bg-gray-50 dark:bg-gray-950">
+      <div className="container mx-auto px-4">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Three simple steps to full visibility</h2>
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
+            Launch projects, streamline collaboration, and demonstrate impact without juggling disconnected tools.
+          </p>
+        </div>
+        <div className="mt-14 grid gap-10 md:grid-cols-3">
+          {steps.map((step, index) => (
+            <div
+              key={step.title}
+              className="relative rounded-2xl border border-gray-200 bg-white p-8 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <step.icon className="h-6 w-6" />
+              </div>
+              <div className="mt-6 text-sm font-semibold uppercase tracking-wide text-primary">Step {index + 1}</div>
+              <h3 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingImpact() {
+  return (
+    <section id="impact" className="py-20 bg-white dark:bg-gray-900">
+      <div className="container mx-auto px-4">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
+            Our impact in numbers
+          </h2>
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
+            Thousands of organisations rely on ImpactTracker to increase transparency, unlock funding, and prove outcomes to their communities.
+          </p>
+        </div>
+        <div className="mt-14 grid gap-8 text-center sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Projects launched", value: "500+" },
+            { label: "Funds monitored", value: "€2.5M" },
+            { label: "Beneficiaries reached", value: "10K+" },
+            { label: "Stakeholder satisfaction", value: "98%" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-2xl border border-gray-200 bg-gray-50 px-8 py-10 shadow-md transition hover:-translate-y-1 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div className="text-4xl font-bold text-primary">{stat.value}</div>
+              <p className="mt-3 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {stat.label}
               </p>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingCTA() {
+  const [, navigate] = useLocation();
+  return (
+    <section className="py-20 bg-primary text-white">
+      <div className="container mx-auto px-4">
+        <div className="grid items-center gap-12 lg:grid-cols-[2fr_1fr]">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Ready to amplify the impact of your projects?
+            </h2>
+            <p className="mt-4 text-lg text-primary-50">
+              Join ImpactTracker and give every donor, partner, and field team a shared source of truth.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-4 lg:justify-end">
+            <Button
+              size="lg"
+              onClick={() => navigate("/login")}
+              className="bg-white px-8 py-6 text-lg font-semibold text-primary hover:bg-white/90"
+            >
+              Create your free account
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => navigate("/login")}
+              className="border-white px-8 py-6 text-lg font-semibold text-white hover:bg-white/10"
+            >
+              Talk to our team
+            </Button>
+          </div>
         </div>
       </div>
     </section>
@@ -148,37 +377,37 @@ function Footer() {
           <div>
             <h4 className="text-lg font-semibold mb-4">ImpactTracker</h4>
             <p className="text-sm text-gray-400">
-              La plateforme de gestion de projets pour ONG.
+              The mission control centre for transparent, high-impact projects.
             </p>
           </div>
           <div>
-            <h4 className="text-lg font-semibold mb-4">Liens Rapides</h4>
+            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a></li>
-              <li><a href="#testimonials" className="hover:text-primary transition-colors">Témoignages</a></li>
-              <li><a href="#contact" className="hover:text-primary transition-colors">Contact</a></li>
-              <li><a href="/login" className="hover:text-primary transition-colors">Connexion</a></li>
+              <li><a href="#features" className="hover:text-primary transition-colors">Platform Features</a></li>
+              <li><a href="#process" className="hover:text-primary transition-colors">How it Works</a></li>
+              <li><a href="#impact" className="hover:text-primary transition-colors">Impact Metrics</a></li>
+              <li><a href="/login" className="hover:text-primary transition-colors">Sign In</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-lg font-semibold mb-4">Certifications</h4>
+            <h4 className="text-lg font-semibold mb-4">Compliance</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li><a href="#" className="hover:text-primary transition-colors">ISO 27001</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">GDPR Compliant</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Sécurité SSL</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">SSL Encryption</a></li>
             </ul>
           </div>
           <div>
             <h4 className="text-lg font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-primary transition-colors">Contactez-nous</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Centre d'aide</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Politique de confidentialité</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Contact our team</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Help centre</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Privacy policy</a></li>
             </ul>
           </div>
         </div>
         <div className="mt-10 pt-6 border-t border-gray-700 text-center text-sm text-gray-400">
-          &copy; {new Date().getFullYear()} {APP_TITLE}. Tous droits réservés.
+          &copy; {new Date().getFullYear()} {APP_TITLE}. All rights reserved.
         </div>
       </div>
     </footer>
@@ -194,35 +423,9 @@ export default function Home() {
       <main className="flex-grow">
         <LandingHero />
         <LandingFeatures />
-        {/* Section for Impact Stats (similar to the image) */}
-        <section className="py-20 bg-white dark:bg-gray-900">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-4">
-              Notre Impact en Chiffres
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
-              Des résultats concrets qui témoignent de l'efficacité de notre plateforme.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl shadow-md">
-                <p className="text-4xl font-bold text-primary mb-1">500+</p>
-                <p className="text-lg text-gray-600 dark:text-gray-300">Projets Actifs</p>
-              </div>
-              <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl shadow-md">
-                <p className="text-4xl font-bold text-primary mb-1">2.5M€</p>
-                <p className="text-lg text-gray-600 dark:text-gray-300">Fonds Levés</p>
-              </div>
-              <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl shadow-md">
-                <p className="text-4xl font-bold text-primary mb-1">10K+</p>
-                <p className="text-lg text-gray-600 dark:text-gray-300">Bénéficiaires</p>
-              </div>
-              <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl shadow-md">
-                <p className="text-4xl font-bold text-primary mb-1">98%</p>
-                <p className="text-lg text-gray-600 dark:text-gray-300">Satisfaction</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <LandingProcess />
+        <LandingImpact />
+        <LandingCTA />
       </main>
       <Footer />
     </div>
