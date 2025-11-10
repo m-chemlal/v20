@@ -1,17 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { APP_TITLE } from "@/const";
 import { useLocation } from "wouter";
-import {
-  ArrowRight,
-  CheckCircle2,
-  FileDown,
-  LayoutDashboard,
-  Paperclip,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, FileDown, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import heroDashboardPreview from "@/assets/hero-dashboard-preview.svg";
 
 // --- Components for Landing Page ---
 
@@ -143,123 +136,13 @@ function LandingHero() {
           <div className="relative mx-auto w-full max-w-xl">
             <div className="absolute -top-8 -left-6 hidden h-20 w-20 rounded-full bg-primary/20 blur-2xl md:block" />
             <div className="absolute -bottom-10 -right-8 hidden h-24 w-24 rounded-full bg-primary/30 blur-3xl md:block" />
-            <div className="relative rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-2xl backdrop-blur dark:border-primary/20 dark:bg-gray-900/80">
-              <div className="mb-5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="h-3 w-3 rounded-full bg-red-400" />
-                  <span className="h-3 w-3 rounded-full bg-amber-300" />
-                  <span className="h-3 w-3 rounded-full bg-emerald-400" />
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">Admin view</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Rural Water Initiative</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Live sync</span>
-              </div>
-              <div className="space-y-5">
-                <div className="rounded-2xl border border-gray-200/80 bg-white/90 p-5 shadow-lg dark:border-gray-800/70 dark:bg-gray-950/70">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-primary">Project overview</p>
-                      <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Rural Water Initiative</h3>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Chef de projet: Marie Ndiaye • Last sync 5 minutes ago
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Budget used</p>
-                      <p className="mt-1 text-2xl font-bold text-primary">€120K</p>
-                      <p className="text-xs font-semibold text-emerald-500">+4% this month</p>
-                    </div>
-                  </div>
-                  <div className="mt-5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Donors</p>
-                    <div className="mt-3 space-y-3">
-                      {donors.map((donor) => (
-                        <div
-                          key={donor.name}
-                          className="flex items-center justify-between rounded-xl bg-white/90 px-3 py-3 shadow-sm dark:bg-gray-900/80"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                              {donor.initials}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{donor.name}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{donor.focus}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-primary">{donor.amount}</p>
-                            <p className="text-xs text-emerald-500">{donor.status}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5 shadow-lg dark:border-primary/20 dark:bg-primary/10">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-primary">Latest indicator update</p>
-                      <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                        Percentage of households with safe water access
-                      </h3>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
-                        Uploaded by Chef Marie Ndiaye • 5 minutes ago
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-white dark:bg-gray-950/70 dark:hover:bg-gray-900"
-                    >
-                      <FileDown className="h-4 w-4" />
-                      Download evidence
-                    </button>
-                  </div>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-lg bg-white/90 p-4 shadow-inner dark:bg-gray-950/80">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">New value</p>
-                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">82%</p>
-                      <p className="text-xs text-emerald-500">+7 pts vs last report</p>
-                    </div>
-                    <div className="rounded-lg bg-white/90 p-4 shadow-inner dark:bg-gray-950/80">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Target</p>
-                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">90% • Q4</p>
-                      <p className="text-xs text-primary">On track</p>
-                    </div>
-                    <div className="rounded-lg bg-white/90 p-4 shadow-inner dark:bg-gray-950/80">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</p>
-                      <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-emerald-500">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Verified by Admin D. Traoré
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Notes / Comments</p>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-                      Community wells 4 and 5 are now operational. Remaining households scheduled for connection after delivery of additional filters next week.
-                    </p>
-                  </div>
-                  <div className="mt-4 rounded-lg border border-dashed border-primary/30 bg-white/80 p-4 dark:border-primary/20 dark:bg-gray-950/80">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <Paperclip className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">water-sampling-report.pdf</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Chef upload • 2.4 MB • Field photos included</p>
-                        </div>
-                      </div>
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        Reviewed
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-white/90 p-6 shadow-2xl backdrop-blur dark:border-primary/20 dark:bg-gray-900/80">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/20" aria-hidden="true" />
+              <img
+                src={heroDashboardPreview}
+                alt="Admin dashboard preview showing project activity and budgets"
+                className="relative z-10 w-full rounded-2xl"
+              />
             </div>
           </div>
         </div>
