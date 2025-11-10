@@ -106,6 +106,12 @@ function coalesceString(...values: Array<string | undefined>) {
   return undefined;
 }
 
+const rawAppBaseUrl = coalesceString(
+  process.env.APP_BASE_URL,
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+);
+
 const rawSmtpHost = coalesceString(
   process.env.SMTP_HOST,
   process.env.MAILTRAP_SMTP_HOST,
@@ -147,6 +153,7 @@ export const config = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   databaseUrl: process.env.DATABASE_URL,
+  appBaseUrl: rawAppBaseUrl,
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET ?? DEFAULT_ACCESS_SECRET,
   refreshTokenSecret:
     process.env.REFRESH_TOKEN_SECRET ?? DEFAULT_REFRESH_SECRET,
