@@ -272,7 +272,7 @@ export default function AdminProjects() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>
               {modalMode === 'add' ? 'Créer un nouveau projet' : 'Modifier le projet'}
