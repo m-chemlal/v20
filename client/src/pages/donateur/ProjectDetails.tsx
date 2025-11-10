@@ -2,10 +2,19 @@ import { useEffect, useMemo, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
 import { useAuthStore } from '@/store/authStore';
-import { DollarSign, Calendar, TrendingUp, ArrowLeft, Download, FileDown } from 'lucide-react';
+import {
+  DollarSign,
+  Calendar,
+  TrendingUp,
+  ArrowLeft,
+  Download,
+  FileDown,
+  Paperclip,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { useRoute, useLocation } from 'wouter';
 import { Indicator, IndicatorEntry } from '@/types/project';
@@ -147,6 +156,36 @@ export default function DonateurProjectDetails() {
       )
     : 0;
 
+  const attachmentsByIndicator = useMemo(() => {
+    return projectIndicators
+      .map((indicator) => {
+        const entries = entriesByIndicator.get(indicator.id) ?? [];
+        const entriesWithEvidence = entries.filter((entry) => Boolean(entry.evidence));
+        if (entriesWithEvidence.length === 0) {
+          return null;
+        }
+        return { indicator, entries: entriesWithEvidence };
+      })
+      .filter(Boolean) as Array<{ indicator: Indicator; entries: IndicatorEntry[] }>;
+  }, [entriesByIndicator, projectIndicators]);
+
+  const resolveEvidenceLabel = (evidence?: string) => {
+    if (!evidence) {
+      return 'pièce jointe';
+    }
+
+    const fallbackLabel = 'pièce jointe';
+
+    try {
+      const url = new URL(evidence);
+      const lastSegment = url.pathname.split('/').pop();
+      return decodeURIComponent(lastSegment || fallbackLabel);
+    } catch (error) {
+      const lastSegment = evidence.split('/').pop();
+      return decodeURIComponent(lastSegment || fallbackLabel);
+    }
+  };
+
   const handlePdfExport = async () => {
     if (!params?.id || !project) {
       toast.error('Projet introuvable pour la génération du rapport.');
@@ -252,6 +291,64 @@ export default function DonateurProjectDetails() {
           </div>
         </Card>
 
+        {attachmentsByIndicator.length > 0 ? (
+          <Card className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Paperclip className="w-5 h-5 text-purple-500" />
+              <div>
+                <h3 className="text-lg font-semibold">Documents partagés</h3>
+                <p className="text-sm text-muted-foreground">
+                  Téléchargez les preuves fournies par les chefs de projet pour suivre l'impact sur le terrain.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {attachmentsByIndicator.map(({ indicator, entries }) => (
+                <div key={indicator.id} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-sm md:text-base">{indicator.name}</h4>
+                    <Badge variant="secondary" className="text-xs">
+                      {entries.length} document{entries.length > 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  <ul className="space-y-2">
+                    {entries.map((entry) => {
+                      const formattedDate = format(entry.createdAt, "dd MMM yyyy 'à' HH:mm");
+                      return (
+                        <li
+                          key={entry.id}
+                          className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-lg border p-3 bg-muted/30"
+                        >
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {resolveEvidenceLabel(entry.evidence)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Partagé le {formattedDate}
+                              {entry.createdByName ? ` • par ${entry.createdByName}` : ''}
+                            </p>
+                          </div>
+                          <Button asChild size="sm" variant="outline" className="gap-2 w-full md:w-auto">
+                            <a
+                              href={entry.evidence}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                            >
+                              <FileDown className="w-4 h-4" />
+                              Télécharger
+                            </a>
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
+
         {/* Indicators Section */}
         <h3 className="text-xl font-semibold">
           Indicateurs Clés ({projectIndicators.length})
@@ -313,20 +410,7 @@ export default function DonateurProjectDetails() {
                     <div className="space-y-3">
                       {indicatorEntries.map((entry) => {
                         const formattedDate = format(entry.createdAt, "dd MMM yyyy 'à' HH:mm");
-                        const attachmentLabel = (() => {
-                          if (!entry.evidence) {
-                            return "la pièce jointe";
-                          }
-                          const fallbackLabel = 'la pièce jointe';
-                          try {
-                            const url = new URL(entry.evidence);
-                            const lastSegment = url.pathname.split('/').pop();
-                            return decodeURIComponent(lastSegment || fallbackLabel);
-                          } catch (error) {
-                            const lastSegment = entry.evidence.split('/').pop();
-                            return decodeURIComponent(lastSegment || fallbackLabel);
-                          }
-                        })();
+                        const attachmentLabel = resolveEvidenceLabel(entry.evidence);
 
                         return (
                           <div
