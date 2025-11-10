@@ -238,6 +238,69 @@ export default function AdminDashboard() {
 
   const COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B'];
 
+  const formatCurrency = (value: number, options?: Intl.NumberFormatOptions) =>
+    Number.isFinite(value)
+      ? value.toLocaleString('fr-FR', {
+          style: 'currency',
+          currency: 'EUR',
+          maximumFractionDigits: 0,
+          ...options,
+        })
+      : '—';
+
+  const formatCurrencyTick = (value: number) => {
+    if (!Number.isFinite(value)) {
+      return '';
+    }
+
+    if (Math.abs(value) >= 1_000_000) {
+      return `${(value / 1_000_000).toLocaleString('fr-FR', {
+        maximumFractionDigits: 1,
+      })} M€`;
+    }
+
+    if (Math.abs(value) >= 1_000) {
+      return `${(value / 1_000).toLocaleString('fr-FR', {
+        maximumFractionDigits: 1,
+      })} k€`;
+    }
+
+    return `${value.toLocaleString('fr-FR')} €`;
+  };
+
+  const budgetOverviewData = useMemo(() => {
+    const normalizeNumber = (raw: unknown) => {
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const truncateName = (name: string) => {
+      const MAX_LENGTH = 18;
+      if (name.length <= MAX_LENGTH) {
+        return name;
+      }
+      return `${name.slice(0, MAX_LENGTH - 1)}…`;
+    };
+
+    return projects.map((project) => {
+      const budget = normalizeNumber(project.budget);
+      const reportedSpent = normalizeNumber(project.spent);
+      const spentFromAllocations = (project.donorAllocations ?? []).reduce(
+        (sum, allocation) => sum + normalizeNumber(allocation.spentAmount ?? allocation.committedAmount),
+        0,
+      );
+
+      const effectiveSpent = Math.max(reportedSpent, spentFromAllocations);
+
+      return {
+        id: project.id,
+        name: truncateName(project.name),
+        budget,
+        spent: effectiveSpent,
+      };
+    });
+  }, [projects]);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -325,19 +388,18 @@ export default function AdminDashboard() {
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Budget Overview</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={projects.map((p) => ({
-                  name: p.name.substring(0, 10),
-                  budget: p.budget,
-                  spent: p.spent,
-                }))}
-              >
+              <BarChart data={budgetOverviewData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="budget" fill="#8B5CF6" />
-                <Bar dataKey="spent" fill="#06B6D4" />
+                <XAxis dataKey="name" interval={0} angle={-15} textAnchor="end" height={60} />
+                <YAxis tickFormatter={formatCurrencyTick} width={90} />
+                <Tooltip
+                  formatter={(value: number, dataKey) => [
+                    formatCurrency(value, { maximumFractionDigits: 0 }),
+                    dataKey === 'budget' ? 'Budget alloué' : 'Montant dépensé',
+                  ]}
+                />
+                <Bar dataKey="budget" name="Budget alloué" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="spent" name="Montant dépensé" fill="#06B6D4" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
