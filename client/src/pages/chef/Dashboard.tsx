@@ -21,9 +21,7 @@ export default function ChefDashboard() {
   const { user } = useAuthStore();
   const fetchProjects = useAppStore((state) => state.fetchProjects);
   const loadedProjects = useAppStore((state) => state.loadedProjects);
-  const myProjects = useAppStore((state) =>
-    state.getProjectsByUser(user?.id ?? '', user?.role ?? ''),
-  );
+  const projects = useAppStore((state) => state.projects);
   const indicators = useAppStore((state) => state.indicators);
   const fetchIndicatorsForProject = useAppStore(
     (state) => state.fetchIndicatorsForProject,
@@ -35,10 +33,35 @@ export default function ChefDashboard() {
     }
   }, [user, loadedProjects, fetchProjects]);
 
-  const assignedProjects = useMemo(
-    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
-    [getProjectsByUser, user?.id, user?.role],
-  );
+  const assignedProjects = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    if (user.role === 'admin') {
+      return projects;
+    }
+
+    if (user.role === 'chef_projet') {
+      return projects.filter((project) => project.chefProjectId === user.id);
+    }
+
+    if (user.role === 'donateur') {
+      return projects.filter((project) => {
+        const donorIds = project.donorAllocations?.map(
+          (allocation) => allocation.donorId,
+        );
+
+        if (donorIds && donorIds.length > 0) {
+          return donorIds.includes(user.id);
+        }
+
+        return project.donatorIds.includes(user.id);
+      });
+    }
+
+    return [];
+  }, [projects, user?.id, user?.role]);
 
   const myIndicators = useMemo(
     () =>
