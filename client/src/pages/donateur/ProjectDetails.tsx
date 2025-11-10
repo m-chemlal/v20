@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
 import { useAuthStore } from '@/store/authStore';
-import { DollarSign, Calendar, TrendingUp, ArrowLeft, Download } from 'lucide-react';
+import { DollarSign, Calendar, TrendingUp, ArrowLeft, Download, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRoute, useLocation } from 'wouter';
 import { Indicator, IndicatorEntry } from '@/types/project';
@@ -257,49 +257,131 @@ export default function DonateurProjectDetails() {
           Indicateurs Clés ({projectIndicators.length})
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {projectIndicators.map((indicator) => (
-            <Card key={indicator.id} className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <h4 className="text-lg font-semibold">{indicator.name}</h4>
-                <span className="text-sm font-medium text-purple-600">
-                  {Math.round(
-                    (indicator.currentValue / indicator.targetValue) * 100
+          {projectIndicators.map((indicator) => {
+            const indicatorEntries = entriesByIndicator.get(indicator.id) ?? [];
+            return (
+              <Card key={indicator.id} className="p-6 space-y-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="text-lg font-semibold">{indicator.name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {indicator.description}
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium text-purple-600">
+                    {Math.round(
+                      (indicator.currentValue / indicator.targetValue) * 100
+                    )}
+                    %
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Valeur Actuelle:</span>
+                    <span className="font-medium">
+                      {indicator.currentValue} {indicator.unit}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Valeur Cible:</span>
+                    <span className="font-medium">
+                      {indicator.targetValue} {indicator.unit}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-full bg-border rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 to-purple-700 h-2 rounded-full"
+                    style={{
+                      width: `${Math.min(
+                        (indicator.currentValue / indicator.targetValue) * 100,
+                        100
+                      )}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <h5 className="text-sm font-semibold">Mises à jour récentes</h5>
+                  {indicatorEntries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Aucun suivi n'a encore été enregistré pour cet indicateur.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {indicatorEntries.map((entry) => {
+                        const formattedDate = format(entry.createdAt, "dd MMM yyyy 'à' HH:mm");
+                        const attachmentLabel = (() => {
+                          if (!entry.evidence) {
+                            return "la pièce jointe";
+                          }
+                          const fallbackLabel = 'la pièce jointe';
+                          try {
+                            const url = new URL(entry.evidence);
+                            const lastSegment = url.pathname.split('/').pop();
+                            return decodeURIComponent(lastSegment || fallbackLabel);
+                          } catch (error) {
+                            const lastSegment = entry.evidence.split('/').pop();
+                            return decodeURIComponent(lastSegment || fallbackLabel);
+                          }
+                        })();
+
+                        return (
+                          <div
+                            key={entry.id}
+                            className="rounded-lg border p-3 bg-muted/30 space-y-2"
+                          >
+                            <div className="flex flex-col gap-1 text-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-medium text-foreground">
+                                  {entry.value} {indicator.unit}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formattedDate}
+                                </span>
+                              </div>
+                              {entry.notes ? (
+                                <p className="text-sm text-muted-foreground">
+                                  {entry.notes}
+                                </p>
+                              ) : null}
+                              {entry.createdByName ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Mis à jour par {entry.createdByName}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            {entry.evidence ? (
+                              <div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                  asChild
+                                >
+                                  <a
+                                    href={entry.evidence}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <FileDown className="w-4 h-4" />
+                                    Télécharger {attachmentLabel}
+                                  </a>
+                                </Button>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                  %
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                {indicator.description}
-              </p>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span>Valeur Actuelle:</span>
-                  <span className="font-medium">
-                    {indicator.currentValue} {indicator.unit}
-                  </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Valeur Cible:</span>
-                  <span className="font-medium">
-                    {indicator.targetValue} {indicator.unit}
-                  </span>
-                </div>
-              </div>
-
-              <div className="w-full bg-border rounded-full h-2 mb-4">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-purple-700 h-2 rounded-full"
-                  style={{
-                    width: `${Math.min(
-                      (indicator.currentValue / indicator.targetValue) * 100,
-                      100
-                    )}%`,
-                  }}
-                />
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
 
         {/* Indicator History Charts */}

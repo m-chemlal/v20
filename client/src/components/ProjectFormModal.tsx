@@ -19,7 +19,7 @@ export function ProjectFormModal({ isOpen, onClose, onProjectCreated }: ProjectF
         onClose();
       }
     }}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Créer un nouveau projet</DialogTitle>
         </DialogHeader>
