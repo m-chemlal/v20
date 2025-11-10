@@ -21,7 +21,9 @@ export default function ChefDashboard() {
   const { user } = useAuthStore();
   const fetchProjects = useAppStore((state) => state.fetchProjects);
   const loadedProjects = useAppStore((state) => state.loadedProjects);
-  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const myProjects = useAppStore((state) =>
+    state.getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+  );
   const indicators = useAppStore((state) => state.indicators);
   const fetchIndicatorsForProject = useAppStore(
     (state) => state.fetchIndicatorsForProject,
@@ -33,10 +35,6 @@ export default function ChefDashboard() {
     }
   }, [user, loadedProjects, fetchProjects]);
 
-  const myProjects = useMemo(
-    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
-    [getProjectsByUser, user?.id, user?.role],
-  );
   const myIndicators = useMemo(
     () =>
       indicators.filter((indicator) =>

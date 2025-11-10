@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
@@ -13,7 +13,9 @@ export default function DonateurDashboard() {
   const { user } = useAuthStore();
   const fetchProjects = useAppStore((state) => state.fetchProjects);
   const loadedProjects = useAppStore((state) => state.loadedProjects);
-  const getProjectsByUser = useAppStore((state) => state.getProjectsByUser);
+  const fundedProjects = useAppStore((state) =>
+    state.getProjectsByUser(user?.id ?? '', user?.role ?? ''),
+  );
   const indicators = useAppStore((state) => state.indicators);
   const fetchIndicatorsForProject = useAppStore((state) => state.fetchIndicatorsForProject);
 
@@ -23,14 +25,18 @@ export default function DonateurDashboard() {
     }
   }, [user, loadedProjects, fetchProjects]);
 
-  const fundedProjects = useMemo(
-    () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
-    [getProjectsByUser, user?.id, user?.role],
-  );
+  const fetchedProjectsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    fetchedProjectsRef.current.clear();
+  }, [user?.id]);
 
   useEffect(() => {
     fundedProjects.forEach((project) => {
-      fetchIndicatorsForProject(project.id);
+      if (!fetchedProjectsRef.current.has(project.id)) {
+        fetchedProjectsRef.current.add(project.id);
+        void fetchIndicatorsForProject(project.id);
+      }
     });
   }, [fundedProjects, fetchIndicatorsForProject]);
 
