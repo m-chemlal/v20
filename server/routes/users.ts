@@ -106,6 +106,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req: AuthenticatedReq
       firstName: payload.firstName,
       lastName: payload.lastName,
       password: payload.password,
+      role: payload.role,
     });
   } catch (error) {
     console.error('Failed to send welcome email to new user', error);
