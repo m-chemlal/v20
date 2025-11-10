@@ -62,6 +62,29 @@ function Header() {
 
 function LandingHero() {
   const [, navigate] = useLocation();
+  const donors = [
+    {
+      name: "Acme Foundation",
+      amount: "€75,000",
+      focus: "Infrastructure for new boreholes",
+      initials: "AF",
+      status: "Active pledge",
+    },
+    {
+      name: "Hope For All",
+      amount: "€32,000",
+      focus: "Community hygiene training",
+      initials: "HA",
+      status: "Renewed",
+    },
+    {
+      name: "United Impact",
+      amount: "€18,500",
+      focus: "Water quality testing kits",
+      initials: "UI",
+      status: "Committed",
+    },
+  ];
   return (
     <section className="relative pt-20 pb-28 lg:pt-32 lg:pb-36 bg-gradient-to-b from-white to-primary/10 dark:from-gray-950 dark:to-gray-900 overflow-hidden">
       <div className="absolute inset-x-0 top-10 -z-10 flex justify-center opacity-30 blur-3xl">
