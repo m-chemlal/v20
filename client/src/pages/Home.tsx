@@ -3,9 +3,10 @@ import { APP_TITLE } from "@/const";
 import { useLocation } from "wouter";
 import {
   ArrowRight,
-  BarChart3,
   CheckCircle2,
+  FileDown,
   LayoutDashboard,
+  Paperclip,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -68,6 +69,29 @@ function Header() {
 
 function LandingHero() {
   const [, navigate] = useLocation();
+  const donors = [
+    {
+      name: "Acme Foundation",
+      amount: "€75,000",
+      focus: "Infrastructure for new boreholes",
+      initials: "AF",
+      status: "Active pledge",
+    },
+    {
+      name: "Hope For All",
+      amount: "€32,000",
+      focus: "Community hygiene training",
+      initials: "HA",
+      status: "Renewed",
+    },
+    {
+      name: "United Impact",
+      amount: "€18,500",
+      focus: "Water quality testing kits",
+      initials: "UI",
+      status: "Committed",
+    },
+  ];
   return (
     <section className="relative pt-20 pb-28 lg:pt-32 lg:pb-36 bg-gradient-to-b from-white to-primary/10 dark:from-gray-950 dark:to-gray-900 overflow-hidden">
       <div className="absolute inset-x-0 top-10 -z-10 flex justify-center opacity-30 blur-3xl">
@@ -84,6 +108,9 @@ function LandingHero() {
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-gray-600 dark:text-gray-300">
               ImpactTracker centralises project monitoring for NGOs and social organisations. Engage donors, coordinate project managers, and report measurable outcomes with one intuitive dashboard.
+            </p>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              Administrators can inspect every donor contribution, validate the chef&apos;s latest indicator values, and instantly download supporting files before publishing updates.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button
@@ -117,74 +144,118 @@ function LandingHero() {
             <div className="absolute -top-8 -left-6 hidden h-20 w-20 rounded-full bg-primary/20 blur-2xl md:block" />
             <div className="absolute -bottom-10 -right-8 hidden h-24 w-24 rounded-full bg-primary/30 blur-3xl md:block" />
             <div className="relative rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-2xl backdrop-blur dark:border-primary/20 dark:bg-gray-900/80">
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="h-3 w-3 rounded-full bg-red-400" />
                   <span className="h-3 w-3 rounded-full bg-amber-300" />
                   <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">Admin view</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Rural Water Initiative</p>
+                  </div>
                 </div>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  Admin Dashboard
-                </span>
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Live sync</span>
               </div>
-              <div className="grid gap-6 lg:grid-cols-[220px_auto]">
-                <div className="rounded-2xl bg-gradient-to-br from-primary/90 via-primary to-primary/70 p-6 text-white shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium uppercase tracking-wide">Projects</p>
-                    <LayoutDashboard className="h-5 w-5" />
-                  </div>
-                  <p className="mt-4 text-3xl font-bold">24 Active</p>
-                  <div className="mt-6 space-y-3">
-                    {[
-                      { label: "Education", value: 68 },
-                      { label: "Clean Water", value: 52 },
-                      { label: "Healthcare", value: 44 },
-                    ].map((item) => (
-                      <div key={item.label}>
-                        <div className="flex items-center justify-between text-xs font-medium">
-                          <span>{item.label}</span>
-                          <span>{item.value}%</span>
-                        </div>
-                        <div className="mt-1 h-1.5 w-full rounded-full bg-white/20">
-                          <div
-                            className="h-1.5 rounded-full bg-white"
-                            style={{ width: `${item.value}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-6">
-                  <div className="rounded-2xl border border-gray-200/80 p-5 dark:border-gray-700/60">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Overview</p>
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
-                        +12% vs last month
-                      </span>
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-gray-200/80 bg-white/90 p-5 shadow-lg dark:border-gray-800/70 dark:bg-gray-950/70">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary">Project overview</p>
+                      <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Rural Water Initiative</h3>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Chef de projet: Marie Ndiaye • Last sync 5 minutes ago
+                      </p>
                     </div>
-                    <div className="mt-4 flex items-end gap-3">
-                      {[65, 80, 55, 70].map((value, index) => (
-                        <div key={index} className="flex-1 rounded-t-md bg-primary/60 dark:bg-primary/70" style={{ height: `${value}%` }} />
+                    <div className="text-right">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Budget used</p>
+                      <p className="mt-1 text-2xl font-bold text-primary">€120K</p>
+                      <p className="text-xs font-semibold text-emerald-500">+4% this month</p>
+                    </div>
+                  </div>
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Donors</p>
+                    <div className="mt-3 space-y-3">
+                      {donors.map((donor) => (
+                        <div
+                          key={donor.name}
+                          className="flex items-center justify-between rounded-xl bg-white/90 px-3 py-3 shadow-sm dark:bg-gray-900/80"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                              {donor.initials}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{donor.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{donor.focus}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-primary">{donor.amount}</p>
+                            <p className="text-xs text-emerald-500">{donor.status}</p>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    <div className="mt-3 flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>Education</span>
-                      <span>Water</span>
-                      <span>Health</span>
-                      <span>Environment</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5 shadow-lg dark:border-primary/20 dark:bg-primary/10">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary">Latest indicator update</p>
+                      <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                        Percentage of households with safe water access
+                      </h3>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+                        Uploaded by Chef Marie Ndiaye • 5 minutes ago
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-white dark:bg-gray-950/70 dark:hover:bg-gray-900"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      Download evidence
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-lg bg-white/90 p-4 shadow-inner dark:bg-gray-950/80">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">New value</p>
+                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">82%</p>
+                      <p className="text-xs text-emerald-500">+7 pts vs last report</p>
+                    </div>
+                    <div className="rounded-lg bg-white/90 p-4 shadow-inner dark:bg-gray-950/80">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Target</p>
+                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">90% • Q4</p>
+                      <p className="text-xs text-primary">On track</p>
+                    </div>
+                    <div className="rounded-lg bg-white/90 p-4 shadow-inner dark:bg-gray-950/80">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</p>
+                      <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-emerald-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Verified by Admin D. Traoré
+                      </div>
                     </div>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-700/60">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Active Indicators</p>
-                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">108</p>
-                      <p className="mt-1 text-xs text-emerald-500">+5 this week</p>
-                    </div>
-                    <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-700/60">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Critical Issues</p>
-                      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">2</p>
-                      <p className="mt-1 text-xs text-rose-500">Immediate attention</p>
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Notes / Comments</p>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                      Community wells 4 and 5 are now operational. Remaining households scheduled for connection after delivery of additional filters next week.
+                    </p>
+                  </div>
+                  <div className="mt-4 rounded-lg border border-dashed border-primary/30 bg-white/80 p-4 dark:border-primary/20 dark:bg-gray-950/80">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Paperclip className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">water-sampling-report.pdf</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Chef upload • 2.4 MB • Field photos included</p>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        Reviewed
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -203,13 +274,19 @@ function LandingFeatures() {
       icon: LayoutDashboard,
       title: "Unified project dashboards",
       description:
-        "Monitor every initiative in real time with configurable indicators, role-based permissions, and instant collaboration tools.",
+        "Monitor every initiative in real time with configurable indicators, rich analytics, and role-based workflows from the same control centre.",
     },
     {
-      icon: BarChart3,
-      title: "Impact analytics & reporting",
+      icon: Users,
+      title: "Complete donor visibility",
       description:
-        "Build evidence-based stories with auto-generated insights, donor-ready exports, and sustainability metrics in one click.",
+        "Track donor commitments, contributions, and focus areas so administrators always know who funds each milestone.",
+    },
+    {
+      icon: FileDown,
+      title: "Chef uploads with evidence",
+      description:
+        "Review the chef's indicator submissions, preview supporting documents, and download proof files without leaving the dashboard.",
     },
     {
       icon: ShieldCheck,
@@ -230,7 +307,7 @@ function LandingFeatures() {
             ImpactTracker connects project teams, field data, and donor visibility so you can focus on delivering outcomes instead of managing spreadsheets.
           </p>
         </div>
-        <div className="mt-14 grid gap-8 md:grid-cols-3">
+        <div className="mt-14 grid gap-8 md:grid-cols-2 xl:grid-cols-4">
           {features.map((feature) => (
             <div
               key={feature.title}
@@ -257,13 +334,13 @@ function LandingProcess() {
       icon: Users,
     },
     {
-      title: "Design your projects",
-      description: "Set objectives, indicators, and milestones while connecting data sources from the field.",
+      title: "Collect field updates",
+      description: "Chefs upload new indicator values, notes, and supporting files directly from the project zones.",
       icon: CheckCircle2,
     },
     {
-      title: "Report transparent results",
-      description: "Share live dashboards with stakeholders and export donor-ready reports with a single click.",
+      title: "Validate & share impact",
+      description: "Admins verify submissions, download evidence, and publish donor-ready dashboards in real time.",
       icon: ArrowRight,
     },
   ];
