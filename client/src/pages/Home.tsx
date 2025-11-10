@@ -103,7 +103,7 @@ function LandingHero() {
               ImpactTracker centralises project monitoring for NGOs and social organisations. Engage donors, coordinate project managers, and report measurable outcomes with one intuitive dashboard.
             </p>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              Administrators can inspect every donor contribution, validate the chef&apos;s latest indicator values, and instantly download supporting files before publishing updates.
+              Administrators can inspect every donor contribution, validate the chef&apos;s latest indicator values, and instantly download supporting files before publishing updates while donors stay in read-only mode without document access.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button
@@ -163,7 +163,7 @@ function LandingFeatures() {
       icon: Users,
       title: "Complete donor visibility",
       description:
-        "Track donor commitments, contributions, and focus areas so administrators always know who funds each milestone.",
+        "Track donor commitments, contributions, and focus areas with read-only dashboards that keep sensitive indicator files restricted from donor downloads.",
     },
     {
       icon: FileDown,
@@ -223,7 +223,8 @@ function LandingProcess() {
     },
     {
       title: "Validate & share impact",
-      description: "Admins verify submissions, download evidence, and publish donor-ready dashboards in real time.",
+      description:
+        "Admins verify submissions, download evidence, and publish donor-ready dashboards while keeping file downloads limited to internal reviewers.",
       icon: ArrowRight,
     },
   ];
