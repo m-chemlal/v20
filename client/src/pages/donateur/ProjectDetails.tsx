@@ -11,8 +11,6 @@ import {
   Calendar,
   TrendingUp,
   ArrowLeft,
-  Download,
-  FileDown,
   Paperclip,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -27,8 +25,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { toast } from 'sonner';
-import { generateProjectReportPdf } from '@/utils/projectReports';
 
 interface IndicatorChartProps {
   indicator: Indicator;
@@ -186,37 +182,6 @@ export default function DonateurProjectDetails() {
     }
   };
 
-  const handlePdfExport = async () => {
-    if (!params?.id || !project) {
-      toast.error('Projet introuvable pour la génération du rapport.');
-      return;
-    }
-
-    try {
-      await refreshProject(params.id);
-      const latestProject = useAppStore.getState().getProjectById(params.id);
-      const latestIndicators = await fetchIndicatorsForProject(params.id);
-      await Promise.all(
-        latestIndicators.map((indicator) => fetchIndicatorEntries(indicator.id)),
-      );
-      const entriesForReport = useAppStore.getState().indicatorEntries;
-
-      if (!latestProject) {
-        throw new Error('Project not found after refresh');
-      }
-
-      generateProjectReportPdf({
-        project: latestProject,
-        indicators: latestIndicators,
-        entries: entriesForReport,
-      });
-      toast.success('Rapport PDF téléchargé avec succès.');
-    } catch (error) {
-      console.error('Failed to generate donor project PDF', error);
-      toast.error("Impossible de générer le rapport PDF du projet.");
-    }
-  };
-
   return (
     <DashboardLayout title={`Projet: ${project.name}`}>
       <motion.div
@@ -233,10 +198,6 @@ export default function DonateurProjectDetails() {
           >
             <ArrowLeft className="w-4 h-4" />
             Retour aux Projets
-          </Button>
-          <Button onClick={handlePdfExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Exporter le rapport PDF
           </Button>
         </div>
 
@@ -298,7 +259,8 @@ export default function DonateurProjectDetails() {
               <div>
                 <h3 className="text-lg font-semibold">Documents partagés</h3>
                 <p className="text-sm text-muted-foreground">
-                  Téléchargez les preuves fournies par les chefs de projet pour suivre l'impact sur le terrain.
+                  Les preuves transmises par les chefs de projet sont répertoriées ci-dessous, mais restent réservées à
+                  l'équipe de gestion.
                 </p>
               </div>
             </div>
@@ -317,7 +279,7 @@ export default function DonateurProjectDetails() {
                       return (
                         <li
                           key={entry.id}
-                          className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-lg border p-3 bg-muted/30"
+                          className="flex flex-col gap-2 rounded-lg border p-3 bg-muted/30"
                         >
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-foreground">
@@ -328,17 +290,9 @@ export default function DonateurProjectDetails() {
                               {entry.createdByName ? ` • par ${entry.createdByName}` : ''}
                             </p>
                           </div>
-                          <Button asChild size="sm" variant="outline" className="gap-2 w-full md:w-auto">
-                            <a
-                              href={entry.evidence}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download
-                            >
-                              <FileDown className="w-4 h-4" />
-                              Télécharger
-                            </a>
-                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Accès restreint — contactez votre administrateur pour obtenir la preuve complète.
+                          </p>
                         </li>
                       );
                     })}
@@ -439,23 +393,9 @@ export default function DonateurProjectDetails() {
                             </div>
 
                             {entry.evidence ? (
-                              <div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2"
-                                  asChild
-                                >
-                                  <a
-                                    href={entry.evidence}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    <FileDown className="w-4 h-4" />
-                                    Télécharger {attachmentLabel}
-                                  </a>
-                                </Button>
-                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {attachmentLabel} — disponible uniquement pour l'administration.
+                              </p>
                             ) : null}
                           </div>
                         );
