@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useLocation } from 'wouter';
 import { UserRole } from '@/types/auth';
@@ -18,27 +18,33 @@ export function ProtectedRoute({
   const { isAuthenticated, user } = useAuthStore();
   const [, navigate] = useLocation();
 
-  // Check if user is authenticated
-  if (!isAuthenticated || !user) {
-    navigate('/login');
+  const redirectTarget = useMemo(() => {
+    if (!isAuthenticated || !user) {
+      return '/login';
+    }
+
+    if (requiredRole) {
+      const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+      if (!roles.includes(user.role)) {
+        return '/unauthorized';
+      }
+    }
+
+    if (requiredPermission && !hasPermission(user.role, requiredPermission)) {
+      return '/unauthorized';
+    }
+
     return null;
-  }
+  }, [isAuthenticated, requiredRole, requiredPermission, user]);
 
-  // Check role if required
-  if (requiredRole) {
-    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!roles.includes(user.role)) {
-      navigate('/unauthorized');
-      return null;
+  useEffect(() => {
+    if (redirectTarget) {
+      navigate(redirectTarget, { replace: true });
     }
-  }
+  }, [navigate, redirectTarget]);
 
-  // Check permission if required
-  if (requiredPermission) {
-    if (!hasPermission(user.role, requiredPermission)) {
-      navigate('/unauthorized');
-      return null;
-    }
+  if (redirectTarget) {
+    return null;
   }
 
   return <>{children}</>;

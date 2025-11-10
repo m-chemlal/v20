@@ -11,13 +11,37 @@ import { Briefcase, TrendingUp, PiggyBank } from 'lucide-react';
 
 export default function DonateurDashboard() {
   const { user } = useAuthStore();
+  const projects = useAppStore((state) => state.projects);
   const fetchProjects = useAppStore((state) => state.fetchProjects);
   const loadedProjects = useAppStore((state) => state.loadedProjects);
-  const fundedProjects = useAppStore((state) =>
-    state.getProjectsByUser(user?.id ?? '', user?.role ?? ''),
-  );
   const indicators = useAppStore((state) => state.indicators);
   const fetchIndicatorsForProject = useAppStore((state) => state.fetchIndicatorsForProject);
+
+  const fundedProjects = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    if (user.role === 'admin') {
+      return projects;
+    }
+
+    if (user.role === 'chef_projet') {
+      return projects.filter((project) => project.chefProjectId === user.id);
+    }
+
+    if (user.role === 'donateur') {
+      return projects.filter((project) => {
+        const donorIds = project.donorAllocations?.map((allocation) => allocation.donorId);
+        if (donorIds && donorIds.length > 0) {
+          return donorIds.includes(user.id);
+        }
+        return project.donatorIds.includes(user.id);
+      });
+    }
+
+    return [];
+  }, [projects, user]);
 
   useEffect(() => {
     if (user && !loadedProjects) {
