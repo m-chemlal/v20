@@ -37,6 +37,7 @@ export default function ChefDashboard() {
     () => getProjectsByUser(user?.id ?? '', user?.role ?? ''),
     [getProjectsByUser, user?.id, user?.role],
   );
+
   const myIndicators = useMemo(
     () =>
       indicators.filter((indicator) =>
