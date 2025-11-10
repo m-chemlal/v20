@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, UserRole } from "@/types/auth";
-import { Copy, Loader2, RefreshCw } from "lucide-react";
+import { Copy, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { usersAPI } from '@/services/api';
 import { toast } from 'sonner';
 import { useState } from "react";
@@ -64,6 +64,7 @@ type AddUserFormData = z.infer<typeof userFormSchema>;
 
 export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => void }) {
   const [generatedPassword, setGeneratedPassword] = useState(generateStrongPassword());
+  const [showPassword, setShowPassword] = useState(false);
   const { control, register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<AddUserFormData>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -82,7 +83,7 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
         password: generatedPassword,
       });
       toast.success(`Utilisateur ${data.firstName} ${data.lastName} créé.`, {
-        description: `Mot de passe temporaire : ${generatedPassword}`,
+        description: "Un mot de passe temporaire a été envoyé par email.",
       });
       reset({
         firstName: '',
@@ -175,7 +176,21 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
       <div className="space-y-2">
         <Label htmlFor="password">Mot de passe (Généré)</Label>
         <div className="flex items-center gap-2">
-          <Input id="password" type="text" value={generatedPassword} readOnly className="font-mono" />
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            value={generatedPassword}
+            readOnly
+            className="font-mono"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowPassword((prev) => !prev)}
+            title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </Button>
           <Button
             type="button"
             variant="outline"
