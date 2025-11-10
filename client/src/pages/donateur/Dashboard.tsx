@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/ui/card';
@@ -25,9 +25,18 @@ export default function DonateurDashboard() {
     }
   }, [user, loadedProjects, fetchProjects]);
 
+  const fetchedProjectsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    fetchedProjectsRef.current.clear();
+  }, [user?.id]);
+
   useEffect(() => {
     fundedProjects.forEach((project) => {
-      fetchIndicatorsForProject(project.id);
+      if (!fetchedProjectsRef.current.has(project.id)) {
+        fetchedProjectsRef.current.add(project.id);
+        void fetchIndicatorsForProject(project.id);
+      }
     });
   }, [fundedProjects, fetchIndicatorsForProject]);
 
