@@ -93,6 +93,58 @@ L'API est optimisée pour SQLite et n'inclut plus le driver PostgreSQL. Si vous 
 
 Ces adaptations sortent du périmètre de la configuration par défaut fournie dans ce dépôt.
 
+## ✉️ Configurer Mailtrap pour l'envoi d'e-mails
+
+L'application sait envoyer les messages de bienvenue soit via SMTP, soit directement via l'API Mailtrap. Voici comment activer l'un ou l'autre mode dans votre environnement de développement :
+
+1. **Créer un compte Mailtrap**
+   - Inscrivez-vous sur [https://mailtrap.io/](https://mailtrap.io/).
+   - Une fois connecté, vous pouvez utiliser l'espace "Email Testing" (pour un bac à sable) ou "Email Sending" (pour des envois réels) suivant vos besoins.
+
+2. **Configurer un expéditeur (Email Sending)**
+   - Dans Mailtrap, rendez-vous dans **Email Sending → Sending Domains** ou **Single Sender Verification**.
+   - Ajoutez votre domaine ou votre adresse d'expéditeur, puis suivez les étapes de vérification proposées par Mailtrap (enregistrement DNS ou clic sur le lien envoyé). Cette étape est nécessaire pour que l'API d'envoi accepte vos requêtes.
+
+3. **Récupérer le jeton API Mailtrap (méthode recommandée)**
+   - Toujours dans **Email Sending**, ouvrez **API Tokens**.
+   - Générez un jeton puis copiez sa valeur.
+   - Dans votre fichier `.env`, renseignez :
+
+     ```env
+     MAILTRAP_API_TOKEN=le_token_copié
+     SMTP_FROM_EMAIL=expediteur@votredomaine.test
+     SMTP_FROM_NAME=ImpactTracker
+     ```
+
+   - L'application utilisera automatiquement l'API Mailtrap (`https://send.api.mailtrap.io/api/send`). Aucune autre configuration n'est nécessaire.
+
+4. **Option : utiliser SMTP Mailtrap (bac à sable)**
+   - Depuis **Email Testing → Inboxes → Integrations**, relevez l'hôte, le port, l'utilisateur et le mot de passe SMTP fournis par Mailtrap.
+   - Ajoutez-les dans `.env` si vous préférez tester via SMTP :
+
+     ```env
+     SMTP_HOST=sandbox.smtp.mailtrap.io
+     SMTP_PORT=2525
+     SMTP_USER=<utilisateur_fourni>
+     SMTP_PASSWORD=<mot_de_passe_fourni>
+     SMTP_SECURE=false
+     ```
+
+   - Vous pouvez laisser vides les variables API : l'application tentera d'abord SMTP, puis se repliera sur l'API si un jeton est présent.
+
+5. **Redémarrer le backend**
+   - Redémarrez `pnpm dev:server` pour appliquer la nouvelle configuration.
+
+6. **Envoyer un e-mail de test**
+   - Définissez si besoin `MAILTRAP_TEST_RECIPIENT` dans `.env` pour éviter de saisir l'adresse à chaque test.
+   - Exécutez la commande suivante pour vérifier que la connexion Mailtrap fonctionne :
+
+     ```bash
+     pnpm mailtrap:test destinataire@example.com
+     ```
+
+   - Vous pouvez ensuite créer un utilisateur depuis l'interface admin pour valider le scénario complet : le message apparaît dans Mailtrap (onglet Email Testing ou Sending → Activity selon la méthode utilisée).
+
 ---
 
 Bonne contribution !
