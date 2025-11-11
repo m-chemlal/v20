@@ -46,7 +46,7 @@ export function LoginForm({ onSwitchToSignup }: { onSwitchToSignup: () => void }
       <CardContent className="p-6 pt-0">
         <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center space-x-2">
           <CheckCircle className="w-4 h-4" />
-          <span className="text-sm font-medium">Secure SSL Connection</span>
+          <span className="text-sm font-medium">Secure Connection</span>
         </div>
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -97,12 +97,6 @@ export function LoginForm({ onSwitchToSignup }: { onSwitchToSignup: () => void }
             )}
           </Button>
         </form>
-        <div className="mt-4 text-center text-sm">
-          Don't have an account?{" "}
-          <button type="button" onClick={onSwitchToSignup} className="text-primary hover:underline font-medium">
-            Sign up
-          </button>
-        </div>
         <div className="mt-6 text-center text-xs text-muted-foreground space-x-4">
           <span className="inline-flex items-center space-x-1">
             <CheckCircle className="w-3 h-3 text-green-500" />

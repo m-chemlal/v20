@@ -183,38 +183,7 @@ export function AddUserForm({ onUserAdded }: { onUserAdded?: (user: User) => voi
             readOnly
             className="font-mono"
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowPassword((prev) => !prev)}
-            title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setGeneratedPassword(generateStrongPassword())}
-            title="Générer un nouveau mot de passe"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(generatedPassword);
-                toast.success('Mot de passe copié dans le presse-papiers');
-              } catch (err) {
-                console.error('Clipboard copy failed', err);
-                toast.error('Impossible de copier le mot de passe');
-              }
-            }}
-            title="Copier le mot de passe"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
+           
         </div>
         <p className="text-xs text-muted-foreground">Conservez ce mot de passe temporaire pour le communiquer à l'utilisateur.</p>
       </div>

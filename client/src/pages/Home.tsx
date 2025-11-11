@@ -46,11 +46,8 @@ function Header() {
             </Button>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => navigate("/login")} className="hidden sm:inline-flex">
-                Sign In
-              </Button>
               <Button onClick={() => navigate("/login")} className="bg-primary hover:bg-primary/90">
-                Get Started
+                Sign In
               </Button>
             </>
           )}
@@ -103,7 +100,7 @@ function LandingHero() {
               ImpactTracker centralises project monitoring for NGOs and social organisations. Engage donors, coordinate project managers, and report measurable outcomes with one intuitive dashboard.
             </p>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              Administrators can inspect every donor contribution, validate the chef&apos;s latest indicator values, and instantly download supporting files before publishing updates while donors stay in read-only mode without document access.
+              Administrators can inspect every donor contribution, validate the chef&apos;s latest indicator values, and instantly download supporting files before publishing updates.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button
@@ -111,16 +108,9 @@ function LandingHero() {
                 onClick={() => navigate("/login")}
                 className="bg-primary px-8 py-6 text-lg font-semibold shadow-lg hover:bg-primary/90"
               >
-                Start for Free
+                Sign In
               </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-primary px-8 py-6 text-lg font-semibold text-primary hover:bg-primary/10"
-              >
-                View Live Demo
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+              
             </div>
             <div className="mt-10 flex flex-wrap items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
               <div className="flex items-center gap-2">
@@ -139,7 +129,7 @@ function LandingHero() {
             <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-white/90 p-6 shadow-2xl backdrop-blur dark:border-primary/20 dark:bg-gray-900/80">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/20" aria-hidden="true" />
               <img
-                src={heroDashboardPreview}
+                src="/photo.png"
                 alt="Admin dashboard preview showing project activity and budgets"
                 className="relative z-10 w-full rounded-2xl"
               />
@@ -163,7 +153,7 @@ function LandingFeatures() {
       icon: Users,
       title: "Complete donor visibility",
       description:
-        "Track donor commitments, contributions, and focus areas with read-only dashboards that keep sensitive indicator files restricted from donor downloads.",
+        "Track donor commitments, contributions, and focus areas so administrators always know who funds each milestone.",
     },
     {
       icon: FileDown,
@@ -223,8 +213,7 @@ function LandingProcess() {
     },
     {
       title: "Validate & share impact",
-      description:
-        "Admins verify submissions, download evidence, and publish donor-ready dashboards while keeping file downloads limited to internal reviewers.",
+      description: "Admins verify submissions, download evidence, and publish donor-ready dashboards in real time.",
       icon: ArrowRight,
     },
   ];
@@ -306,23 +295,6 @@ function LandingCTA() {
             <p className="mt-4 text-lg text-primary-50">
               Join ImpactTracker and give every donor, partner, and field team a shared source of truth.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-4 lg:justify-end">
-            <Button
-              size="lg"
-              onClick={() => navigate("/login")}
-              className="bg-white px-8 py-6 text-lg font-semibold text-primary hover:bg-white/90"
-            >
-              Create your free account
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => navigate("/login")}
-              className="border-white px-8 py-6 text-lg font-semibold text-white hover:bg-white/10"
-            >
-              Talk to our team
-            </Button>
           </div>
         </div>
       </div>
